@@ -1,6 +1,7 @@
 # CoachBrawl.apk — сборка из стока 53.170
 
 исходник: `Brawl_Stars-53.170.apk` (com.supercell.brawlstars, versionCode 53170).
+пакет сменён на `com.coachbrawl.brawl` (правится string pool бинарного манифеста, класс `GameApp` не трогаем) — ставится рядом со стоком без конфликта.
 клиент стоковый, хост сервера в нём зашифрован, поэтому редирект через frida-gadget.
 
 ## что внутри CoachBrawl.apk
