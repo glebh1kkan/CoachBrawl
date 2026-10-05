@@ -164,6 +164,9 @@ namespace IndusBrawl.Laser.Server.Web
                         ("GET", "/ranked") => RankedMatches(),
                         ("GET", "/logs") => ReadLogs(query["lines"].ToString(), query["q"].ToString()),
                         ("POST", "/restart") => Restart(),
+                        ("GET", "/content") => ContentStatus(),
+                        ("POST", "/content/test-tags") => ContentTestTags(body),
+                        ("POST", "/content/refresh") => ContentRefresh(),
                         ("POST", "/maintenance") => Maintenance(body),
                         _ => throw new ApiError(404, "Не найдено")
                     };
@@ -536,6 +539,52 @@ namespace IndusBrawl.Laser.Server.Web
                 Environment.Exit(42); // loop.sh перезапустит сервер
             });
             return new { restarting = true };
+        }
+
+        // ---------- Контент-апдейты ----------
+
+        private object ContentStatus()
+        {
+            var files = new List<object>();
+            try
+            {
+                string fp = File.ReadAllText("fingerprint.json");
+                var json = JsonConvert.DeserializeObject<JObject>(fp);
+                foreach (var f in json["files"] ?? new JArray())
+                    files.Add(new { file = (string)f["file"], sha = ((string)f["sha"] ?? "").Substring(0, Math.Min(12, ((string)f["sha"] ?? "").Length)) });
+            }
+            catch (Exception ex)
+            {
+                return new { error = "fingerprint.json: " + ex.Message };
+            }
+            return new
+            {
+                sha = IndusBrawl.Laser.Server.Fingerprint.Fingerprint.Sha,
+                version = IndusBrawl.Laser.Server.Fingerprint.Fingerprint.Version,
+                contentUrl = Utils.ContentUpdateTest.ContentUrl,
+                testTags = Utils.ContentUpdateTest.GetTestTags(),
+                files
+            };
+        }
+
+        private object ContentTestTags(JObject body)
+        {
+            Utils.ContentUpdateTest.SetTestTags((string)body["tags"] ?? "");
+            return new { saved = true, testTags = Utils.ContentUpdateTest.GetTestTags() };
+        }
+
+        private object ContentRefresh()
+        {
+            try
+            {
+                RefreshFingerprint.Main();
+                IndusBrawl.Laser.Server.Fingerprint.Fingerprint.Load();
+                return ContentStatus();
+            }
+            catch (Exception ex)
+            {
+                throw new ApiError(500, "Не смог пересчитать: " + ex.Message);
+            }
         }
 
         private static List<JObject> ReadPayments()

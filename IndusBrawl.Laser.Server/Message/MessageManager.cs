@@ -2055,16 +2055,15 @@ private void GetLeaderboardReceived(GetLeaderboardMessage message)
                     return;
                 }
             }
-            int penis = 124;
             Logger.Print($"Login sha: {message.ResourceSha}");
-            if (message.ResourceSha != Fingerprint.Sha && penis == 0)
+            if (message.ResourceSha != Fingerprint.Sha && ContentUpdateTest.IsTestAccount(account?.AccountId ?? -1))
             {
-                Logger.Warning($"Login sha: {message.ResourceSha} Server Sha: {Fingerprint.Sha}");
+                Logger.Warning($"Login sha: {message.ResourceSha} Server Sha: {Fingerprint.Sha} (content-test)");
                 {
                     AuthenticationFailedMessage loginFailed = new AuthenticationFailedMessage();
                     loginFailed.ErrorCode = 7;
                     loginFailed.FingerprintSha = Fingerprint.Sha;
-                    loginFailed.ContentUrl = "http://89.35.130.57:8080/";
+                    loginFailed.ContentUrl = ContentUpdateTest.ContentUrl;
                     Connection.Send(loginFailed);
                     return;
                 }

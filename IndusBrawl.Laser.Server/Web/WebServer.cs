@@ -62,8 +62,55 @@ namespace IndusBrawl.Laser.Server.Web
                         Console.WriteLine($"[WEB] Статика из: {wwwrootPath}");
                     }
 
-                    app.Map("/api", apiApp =>
+                    // контент-апдейты для клиента (фингерпринт): только файлы из fingerprint.json
+                    app.Map("/content", contentApp =>
                     {
+                        contentApp.Run(async context =>
+                        {
+                            string rel = (context.Request.Path.Value ?? "").TrimStart('/').Replace('\\', '/');
+                            try
+                            {
+                                if (rel == "" || rel.Contains(".."))
+                                {
+                                    context.Response.StatusCode = 400;
+                                    await context.Response.WriteAsync("bad path");
+                                    return;
+                                }
+                                string fpPath = Path.Combine(AppContext.BaseDirectory, "fingerprint.json");
+                                if (rel == "fingerprint.json" && System.IO.File.Exists(fpPath))
+                                {
+                                    Console.WriteLine($"[CONTENT] отдаю fingerprint.json для {context.Connection.RemoteIpAddress}");
+                                    context.Response.ContentType = "application/json";
+                                    await context.Response.SendFileAsync(fpPath);
+                                    return;
+                                }
+                                string patchRoot = Path.Combine(AppContext.BaseDirectory, "PatchAssets");
+                                string full = Path.GetFullPath(Path.Combine(patchRoot, rel));
+                                if (!full.StartsWith(Path.GetFullPath(patchRoot) + Path.DirectorySeparatorChar))
+                                {
+                                    context.Response.StatusCode = 403;
+                                    await context.Response.WriteAsync("forbidden");
+                                    return;
+                                }
+                                if (!System.IO.File.Exists(full))
+                                {
+                                    context.Response.StatusCode = 404;
+                                    await context.Response.WriteAsync("not found");
+                                    return;
+                                }
+                                Console.WriteLine($"[CONTENT] отдаю {rel} для {context.Connection.RemoteIpAddress}");
+                                context.Response.ContentType = "application/octet-stream";
+                                await context.Response.SendFileAsync(full);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[CONTENT] ошибка {rel}: {ex.Message}");
+                                context.Response.StatusCode = 500;
+                            }
+                        });
+                    });
+
+                    app.Map("/api", apiApp =>                    {
                         apiApp.Run(async context =>
                         {
                             var path = context.Request.Path.Value?.ToLower() ?? "";

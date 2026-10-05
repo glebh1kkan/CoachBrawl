@@ -105,6 +105,7 @@
       <button data-tab="events">События</button>
       <button data-tab="ranked">Ранкед</button>
       <button data-tab="logs">Логи</button>
+      <button data-tab="content">Контент</button>
     </nav>
     <div class="spacer"></div>
     <button id="logout">Выйти</button>
@@ -325,6 +326,28 @@
       </div>
     </section>
 
+    <!-- Контент -->
+    <section data-view="content" class="hidden">
+      <div class="card">
+        <h2>Контент-апдейты (фингерпринт)</h2>
+        <p class="note">Клиент скачивает файлы из PatchAssets при входе, только если его sha не совпал. Проверка Error 7 действует ТОЛЬКО на тестовые акки ниже — остальные заходят как раньше.</p>
+        <div class="grid" id="ctStats"></div>
+        <h3>Файлы в раздаче</h3>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Файл</th><th>SHA</th></tr></thead>
+          <tbody id="ctRows"></tbody>
+        </table></div>
+        <h3>Тестовые акки (тэги, по одному на строку)</h3>
+        <form id="ctForm" class="row">
+          <div class="grow"><textarea id="ctTags" rows="3" style="width:100%" placeholder="#ABC12"></textarea></div>
+          <button type="submit">Сохранить</button>
+        </form>
+        <div class="row" style="margin-top:10px">
+          <button id="ctRefresh" class="primary">Пересчитать fingerprint</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Логи -->
     <section data-view="logs" class="hidden">
       <div class="card">
@@ -420,7 +443,7 @@ $('loginForm').addEventListener('submit', async (event) => {
 $('logout').addEventListener('click', async () => { await run(null, () => api('/logout', {})); showLogin(); });
 
 // ---------- Вкладки ----------
-const loaders = { stats: loadStats, players: () => searchPlayers(), offers: loadOffers, mail: loadMail, payments: loadPayments, gems: loadGemPayments, events: loadEvents, ranked: loadRanked, logs: loadLogs };
+const loaders = { stats: loadStats, players: () => searchPlayers(), offers: loadOffers, mail: loadMail, payments: loadPayments, gems: loadGemPayments, events: loadEvents, ranked: loadRanked, logs: loadLogs, content: loadContent };
 function openTab(name) {
   document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('[data-view]').forEach((v) => v.classList.toggle('hidden', v.dataset.view !== name));
@@ -763,6 +786,31 @@ async function loadRanked() {
   if (!rows.length) rows.push(el('tr', {}, el('td', { colSpan: 5, className: 'muted', textContent: 'Нет активных матчей' })));
   $('rkRows').replaceChildren(...rows);
 }
+
+// ---------- Контент ----------
+async function loadContent() {
+  const s = await api('/content');
+  if (s.error) { toast(s.error); return; }
+  $('ctStats').replaceChildren(
+    el('div', { className: 'stat' }, el('b', { textContent: (s.sha || '').slice(0, 12) }), el('span', { textContent: 'sha сервера' })),
+    el('div', { className: 'stat' }, el('b', { textContent: s.version || '?' }), el('span', { textContent: 'версия' })),
+    el('div', { className: 'stat' }, el('b', { textContent: (s.testTags || []).length }), el('span', { textContent: 'тестовых акков' })));
+  $('ctStats').append(el('div', { className: 'stat' }, el('b', { textContent: s.contentUrl, style: 'font-size:11px' }), el('span', { textContent: 'content url' })));
+  const rows = (s.files || []).map((f) => el('tr', {}, el('td', { textContent: f.file }), el('td', { textContent: f.sha })));
+  if (!rows.length) rows.push(el('tr', {}, el('td', { colSpan: 2, className: 'muted', textContent: 'Пусто' })));
+  $('ctRows').replaceChildren(...rows);
+  $('ctTags').value = (s.testTags || []).join('\n');
+}
+$('ctForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  await run(event.target.querySelector('button'), async () => {
+    await api('/content/test-tags', { tags: $('ctTags').value });
+    toast('Тестовые акки сохранены');
+  });
+});
+$('ctRefresh').addEventListener('click', async (event) => {
+  await run(event.target, async () => { await api('/content/refresh'); toast('Fingerprint пересчитан'); await loadContent(); });
+});
 
 // ---------- Логи ----------
 async function loadLogs() {
