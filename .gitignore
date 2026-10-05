@@ -15,6 +15,7 @@ claimed_offers.json
 gems_transfers.json
 skin_claims.json
 vip_payments.json
+gem_payments.json
 shop_offers.json
 mail_log.json
 admin_audit.log

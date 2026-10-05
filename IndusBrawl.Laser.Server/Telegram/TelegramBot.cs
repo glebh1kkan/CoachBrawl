@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Threading.Tasks;
@@ -29,6 +29,7 @@ namespace IndusBrawl.Laser.Server.Bot
 
         private TelegramLinkManager _linkManager;
         private VipMarket _vipMarket;
+        private GemMarket _gemMarket;
 
         private static readonly ConcurrentDictionary<long, LinkState> _linkStates = new ConcurrentDictionary<long, LinkState>();
         private static readonly ConcurrentDictionary<long, bool> _notificationSettings = new ConcurrentDictionary<long, bool>();
@@ -170,6 +171,7 @@ namespace IndusBrawl.Laser.Server.Bot
             _linkManager = new TelegramLinkManager();
             _client = new TelegramClient(_botToken);
             _vipMarket = new VipMarket(_client, _linkManager, _adminIds);
+            _gemMarket = new GemMarket(_client, _linkManager, _adminIds);
             InitializeSantaEvent();
             LoadDailyLimits();
             _ = Task.Run(() => StartDailyLimitResetTask());
@@ -307,7 +309,7 @@ namespace IndusBrawl.Laser.Server.Bot
                 }
                 
                 File.WriteAllLines(filePath, lines);
-                Console.WriteLine($"[TransferGems] Лимиты сохранены в простой файл: {lines.Count} записей");
+                Console.WriteLine($"[TransferGems] лимиты сохранены в простой файл: {lines.Count} записей");
             }
             catch (Exception ex)
             {
@@ -706,7 +708,7 @@ namespace IndusBrawl.Laser.Server.Bot
                     
                     if (records.Count == 0)
                     {
-                        Console.WriteLine($"[TransferGems] Нет записей в файле, создаем новую структуру");
+                        Console.WriteLine($"[TransferGems] нет записей в файле, создаем новую структуру");
                     }
                 }
                 else
@@ -826,7 +828,11 @@ namespace IndusBrawl.Laser.Server.Bot
 
                 if (update.pre_checkout_query != null)
                 {
-                    await _vipMarket.HandlePreCheckoutAsync(update.pre_checkout_query);
+                    string payload = update.pre_checkout_query.invoice_payload ?? "";
+                    if (payload.StartsWith("gem|"))
+                        await _gemMarket.HandlePreCheckoutAsync(update.pre_checkout_query);
+                    else
+                        await _vipMarket.HandlePreCheckoutAsync(update.pre_checkout_query);
                     return;
                 }
 
@@ -834,7 +840,11 @@ namespace IndusBrawl.Laser.Server.Bot
 
                 if (update.message.successful_payment != null)
                 {
-                    await _vipMarket.HandleSuccessfulPaymentAsync(update.message);
+                    string payload = update.message.successful_payment.invoice_payload ?? "";
+                    if (payload.StartsWith("gem|"))
+                        await _gemMarket.HandleSuccessfulPaymentAsync(update.message);
+                    else
+                        await _vipMarket.HandleSuccessfulPaymentAsync(update.message);
                     return;
                 }
 
@@ -856,14 +866,14 @@ namespace IndusBrawl.Laser.Server.Bot
                     if (DateTime.UtcNow > linkState.Expiry)
                     {
                         _linkStates.TryRemove(userId, out _);
-                        await _client.SendMessageAsync(chatId, "ℹ️ Время на ввод кода истекло. Начните заново.", TelegramClient.ParseMode.MarkdownV2);
+                        await _client.SendMessageAsync(chatId, "ℹ️ время на ввод кода вышло. начни заново.", TelegramClient.ParseMode.MarkdownV2);
                         return;
                     }
 
                     if (linkState.AttemptsCount >= 3)
                     {
                         _linkStates.TryRemove(userId, out _);
-                        await _client.SendMessageAsync(chatId, "❌ Слишком много неверных попыток. Начните заново.", TelegramClient.ParseMode.MarkdownV2);
+                        await _client.SendMessageAsync(chatId, "❌ слишком много неверных попыток. начни заново.", TelegramClient.ParseMode.MarkdownV2);
                         return;
                     }
 
@@ -876,7 +886,7 @@ namespace IndusBrawl.Laser.Server.Bot
                     else
                     {
                         linkState.AttemptsCount++;
-                        await _client.SendMessageAsync(chatId, $"❌ Неверный код. Попыток осталось: {3 - linkState.AttemptsCount}", TelegramClient.ParseMode.MarkdownV2);
+                        await _client.SendMessageAsync(chatId, $"❌ неверный код. осталось попыток: {3 - linkState.AttemptsCount}", TelegramClient.ParseMode.MarkdownV2);
                         return;
                     }
                 }
@@ -899,7 +909,7 @@ namespace IndusBrawl.Laser.Server.Bot
                 Console.WriteLine($"[TelegramBot] Ошибка в HandleUpdateAsync: {ex.Message}");
                 try
                 {
-                    await _client.SendMessageAsync(update.message?.chat.id ?? 0, "Произошла ошибка. Попробуйте позже.", TelegramClient.ParseMode.MarkdownV2);
+                    await _client.SendMessageAsync(update.message?.chat.id ?? 0, "произошла ошибка. попробуй позже.", TelegramClient.ParseMode.MarkdownV2);
                 }
                 catch { }
             }
@@ -911,13 +921,13 @@ namespace IndusBrawl.Laser.Server.Bot
 
             if (_linkManager.IsTelegramLinked(userId))
             {
-                await _client.SendMessageAsync(chatId, $"❌ Ваш Telegram уже привязан к другому игровому аккаунту.", TelegramClient.ParseMode.MarkdownV2);
+                await _client.SendMessageAsync(chatId, $"❌ твой телег уже привязан к другому акке.", TelegramClient.ParseMode.MarkdownV2);
                 return;
             }
 
             if (_linkManager.IsAccountLinked(tag))
             {
-                await _client.SendMessageAsync(chatId, $"❌ Аккаунт `{tag}` уже привязан к другому Telegram.", TelegramClient.ParseMode.MarkdownV2);
+                await _client.SendMessageAsync(chatId, $"❌ Аккаунт `{tag}` уже привязан к другой телеге.", TelegramClient.ParseMode.MarkdownV2);
                 return;
             }
 
@@ -928,14 +938,14 @@ namespace IndusBrawl.Laser.Server.Bot
             }
             catch (ArgumentException ex)
             {
-                await _client.SendMessageAsync(chatId, $"❌ Неверный формат тега аккаунта: {ex.Message}", TelegramClient.ParseMode.MarkdownV2);
+                await _client.SendMessageAsync(chatId, $"❌ неверный формат тэга: {ex.Message}", TelegramClient.ParseMode.MarkdownV2);
                 return;
             }
 
             Account account = Accounts.Load(targetAccountId);
             if (account == null)
             {
-                await _client.SendMessageAsync(chatId, $"❌ Аккаунт с тегом `{tag}` не найден.", TelegramClient.ParseMode.MarkdownV2);
+                await _client.SendMessageAsync(chatId, $"❌ акк с тэго `{tag}` не найден.", TelegramClient.ParseMode.MarkdownV2);
                 return;
             }
 
@@ -954,11 +964,11 @@ namespace IndusBrawl.Laser.Server.Bot
             bool sent = await SendConfirmationNotificationToGame(targetAccountId, code);
             if (!sent)
             {
-                await _client.SendMessageAsync(chatId, "❌ Не удалось отправить уведомление в игру. Попробуйте позже.", TelegramClient.ParseMode.MarkdownV2);
+                await _client.SendMessageAsync(chatId, "❌ не вышло кинуть уведу в игру. попробуй позже.", TelegramClient.ParseMode.MarkdownV2);
                 return;
             }
 
-            await _client.SendMessageAsync(chatId, $"✅ Отлично! Я отправил код подтверждения на аккаунт `{tag}`.\n\n" +
+            await _client.SendMessageAsync(chatId, $"✅ отлично! кинул код подтвы на акк `{tag}`.\n\n" +
                                                    $"*Введите код сюда, чтобы завершить привязку.*", TelegramClient.ParseMode.MarkdownV2);
         }
 
@@ -970,13 +980,13 @@ namespace IndusBrawl.Laser.Server.Bot
                 long targetAccountIdLong = TagToId(targetAccountId);
                 bool skinSent = await SendSkinRewardNotificationToGame(targetAccountIdLong, 59);
 
-                await _client.SendMessageAsync(chatId, $"✅ Успешно! Ваш Telegram привязан к аккаунту `{targetAccountId}`.\n\n" +
+                await _client.SendMessageAsync(chatId, $"✅ готово! твоя телега привязана к акке `{targetAccountId}`.\n\n" +
                                                        $"Теперь вы можете восстановить доступ через /recover." +
                                                        (skinSent ? $"\n🎁 Вам также выдан скин *Волшебник барли* за успешную привязку!" : ""), TelegramClient.ParseMode.MarkdownV2);
             }
             else
             {
-                await _client.SendMessageAsync(chatId, "❌ Не удалось завершить привязку. Попробуйте позже.", TelegramClient.ParseMode.MarkdownV2);
+                await _client.SendMessageAsync(chatId, "❌ не вышло закончить привязку. попробуй позже.", TelegramClient.ParseMode.MarkdownV2);
             }
         }
 
@@ -1060,6 +1070,14 @@ private async Task SendMessage(long chatId, long userId, string text, string par
                 {
                     await _vipMarket.SendInvoiceAsync(chatId, userId, callbackData.Replace("vip_buy_", ""));
                 }
+                else if (callbackData == "menu_gems")
+                {
+                    await _gemMarket.ShowMarketAsync(chatId, userId);
+                }
+                else if (callbackData.StartsWith("gem_buy_"))
+                {
+                    await _gemMarket.SendInvoiceAsync(chatId, userId, callbackData.Replace("gem_buy_", ""));
+                }
                 else if (callbackData.StartsWith("unlink_confirm_"))
                 {
                     string tag = callbackData.Replace("unlink_confirm_", "");
@@ -1107,7 +1125,7 @@ private async Task SendMessage(long chatId, long userId, string text, string par
                 else if (callbackData == "account_link")
                 {
                     await SendMessage(chatId, userId, 
-                        "🔗 *Привязка аккаунта*\n\nОтправьте свой игровой ТЭГ (например: `#2PP`)", 
+                        "🔗 *привязка акка*\n\nкинь свой игровой тэг (например: `#2pp`)", 
                         "MarkdownV2");
                 }
                 else if (callbackData == "account_list")
@@ -1179,7 +1197,7 @@ private async Task SendMessage(long chatId, long userId, string text, string par
                     if (_activeSpinRequests.TryGetValue(userId, out bool isProcessing) && isProcessing)
                     {
                         await SendMessage(chatId, userId, 
-                            "⏳ Ваш запрос уже обрабатывается! Пожалуйста, подождите...",
+                            "⏳ запрос уже крутится! подожди чуток...",
                             "MarkdownV2");
                         return;
                     }
@@ -1187,7 +1205,7 @@ private async Task SendMessage(long chatId, long userId, string text, string par
                     if (!_linkManager.TryGetAccountId(userId, out string accountTag))
                     {
                         await SendMessage(chatId, userId, 
-                            "❌ Сначала привяжите аккаунт, чтобы использовать колесо фортуны!",
+                            "❌ сначала привяжи акк, чтоб крутить колесо!",
                             "MarkdownV2");
                         return;
                     }
@@ -1202,15 +1220,15 @@ private async Task SendMessage(long chatId, long userId, string text, string par
                             if ((DateTime.UtcNow - lastSpin).TotalSeconds < 10)
                             {
                                 await SendMessage(chatId, userId,
-                                    "⏳ Вы уже крутили колесо! Пожалуйста, подождите немного...",
+                                    "⏳ ты уже крутил! подожди чуток...",
                                     "MarkdownV2");
                                 return;
                             }
                             
                             await SendMessage(chatId, userId,
-                                "⏳ Вы уже крутили колесо сегодня!\n\n" +
-                                $"🔥 Ваша серия: {_dailyStreaks.GetValueOrDefault(userId, 0)} дней\n" +
-                                $"⏰ Следующий спин будет доступен завтра в 00:00 UTC",
+                                "⏳ ты уже крутил сегодня!\n\n" +
+                                $"🔥 твоя серия: {_dailyStreaks.GetValueOrDefault(userId, 0)} дней\n" +
+                                $"⏰ следующий спин завтра в 00:00 utc",
                                 "MarkdownV2");
                             return;
                         }
@@ -1311,7 +1329,7 @@ private async Task SendMessage(long chatId, long userId, string text, string par
                 try
                 {
                     await SendMessage(chatId, userId,
-                        "❌ Произошла ошибка при обработке запроса. Попробуйте позже.",
+                        "❌ ошибка при обработке. попробуй позже.",
                         "MarkdownV2");
                 }
                 catch { }
@@ -1326,15 +1344,15 @@ private async Task SendMessage(long chatId, long userId, string text, string par
         {
             new object[]
             {
-                new { text = "✅ Да, отвязать", callback_data = $"unlink_do_{tag}" },
-                new { text = "❌ Нет", callback_data = "menu_accounts" }
+                new { text = "✅ да, отвязать", callback_data = $"unlink_do_{tag}" },
+                new { text = "❌ нет", callback_data = "menu_accounts" }
             }
         }
     };
 
     await SendMessage(chatId, userId,
-        $"⚠️ *Вы уверены, что хотите отвязать аккаунт* `{tag}`?\n\n" +
-        "После отвязки вы не сможете управлять этим аккаунтом через бота.\n\n",
+        $"⚠️ *точно хочешь отвязать акк* `{tag}`?\n\n" +
+        "после отвязки бот не сможет управлять этим акком.\n\n",
       "MarkdownV2", keyboard);
 }
 
@@ -1384,16 +1402,16 @@ private async Task SendMessage(long chatId, long userId, string text, string par
                     {
                         inline_keyboard = new object[]
                         {
-                            new object[] { new { text = "📋 Мои аккаунты", callback_data = "menu_accounts" } },
-                            new object[] { new { text = "← Главное меню", callback_data = "menu_main" } }
+                            new object[] { new { text = "📋 мои акки", callback_data = "menu_accounts" } },
+                            new object[] { new { text = "← главное меню", callback_data = "menu_main" } }
                         }
                     };
 
                     await SendMessage(chatId, userId,
                         $"✅ *Аккаунт `{tag}` успешно отвязан!*\n\n" +
-                        $"🔐 *Новая команда для входа:*\n" +
+                        $"🔐 *новая команда для входа:*\n" +
                         $"`{newLoadCommand}`\n\n" +
-                        $"❗ Сохраните эту команду в безопасном месте!",
+                        $"❗ сохрани эту команду, она теперь только у тебя!",
                         "MarkdownV2", keyboard);
                 }
             }
@@ -1402,14 +1420,14 @@ private async Task SendMessage(long chatId, long userId, string text, string par
                 Console.WriteLine($"[Unlink] Ошибка при сбросе токена: {ex.Message}");
                 await SendMessage(chatId, userId,
                     $"✅ *Аккаунт `{tag}` отвязан, но возникла ошибка при сбросе токена.*\n\n" +
-                    "Обратитесь к администратору @CoachBrawl",
+                    "напиши админу @CoachBrawl",
                     "MarkdownV2");
             }
         }
         else
         {
             await SendMessage(chatId, userId,
-                "❌ *Ошибка при отвязке аккаунта.*\n\nПопробуйте позже.",
+                "❌ *ошибка при отвязке.*\n\nПопробуйте позже.",
                 "MarkdownV2");
         }
     }
@@ -1417,7 +1435,7 @@ private async Task SendMessage(long chatId, long userId, string text, string par
     {
         Console.WriteLine($"[Unlink Error] {ex.Message}");
         await SendMessage(chatId, userId,
-            "❌ *Произошла ошибка*\n\nПожалуйста, сообщите администратору.",
+            "❌ *ошибка*\n\nнапиши админу.",
             "MarkdownV2");
     }
 }
@@ -1428,36 +1446,36 @@ private async Task SendMessage(long chatId, long userId, string text, string par
             {
                 inline_keyboard = new object[]
                 {
-                    new object[] { new { text = "👤 Администратор", url = "https://t.me/CoachBrawl" } },
-                    new object[] { new { text = "📢 Канал", url = "https://t.me/coachbrawl" } },
-                    new object[] { new { text = "🌐 Сайт", url = "https://coachbrawl.mooo.com/" } },
-                    new object[] { new { text = "❓ Частые вопросы", callback_data = "support_faq" } },
-                    new object[] { new { text = "← Назад", callback_data = "menu_main" } }
+                    new object[] { new { text = "👤 админ", url = "https://t.me/CoachBrawl" } },
+                    new object[] { new { text = "📢 канал", url = "https://t.me/coachbrawl" } },
+                    new object[] { new { text = "🌐 сайт", url = "https://coachbrawl.mooo.com/" } },
+                    new object[] { new { text = "❓ частые вопросы", callback_data = "support_faq" } },
+                    new object[] { new { text = "← назад", callback_data = "menu_main" } }
                 }
             };
 
             string message = 
-@"📞 *ПОДДЕРЖКА И СВЯЗЬ*
+@"📞 *поддержка и связь*
 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
 
-👑 *По вопросам писать:*
+👑 *по вопросам писать:*
 • @CoachBrawl
 
-🌐 *Наш сайт:*
+🌐 *наш сайт:*
 • https://coachbrawl.mooo.com/
 
-📢 *Telegram канал:*
+📢 *телег канал:*
 • @coachbrawl
 
-🎥 *Tutorial:*
+🎥 *туториал:*
 • https://youtube.com/shorts/Pj9TEaGSF4o
 
-💬 *Если у вас есть вопросы, предложения или проблемы:*
+💬 *если есть вопросы или траблы:*
 • Напишите администратору в личные сообщения
 • Подпишитесь на канал для новостей
 • Посетите наш сайт
 
-⏰ *Время ответа:* обычно в течение нескольких часов";
+⏰ *время ответа:* обычно в течение пары часов";
 
             await SendMessage(chatId, userId, message, "MarkdownV2", keyboard);
         }
@@ -1468,42 +1486,42 @@ private async Task SendMessage(long chatId, long userId, string text, string par
             {
                 inline_keyboard = new object[]
                 {
-                    new object[] { new { text = "📞 Связаться", url = "https://t.me/CoachBrawl" } },
-                    new object[] { new { text = "← Назад", callback_data = "menu_support" } }
+                    new object[] { new { text = "📞 связаться", url = "https://t.me/CoachBrawl" } },
+                    new object[] { new { text = "← назад", callback_data = "menu_support" } }
                 }
             };
 
             string message = 
-@"❓ *ЧАСТО ЗАДАВАЕМЫЕ ВОПРОСЫ*
+@"❓ *частые вопросы*
 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
 
-❔ *Как привязать аккаунт?*
-→ Отправьте свой ТЭГ (#2PP) боту
+❔ *как привязать акк?*
+→ кинь свой тэг (#2pp) боту
 
-❔ *Не приходит код?*
-→ Проверьте уведомления в игре
-→ Попробуйте через 5 минут
+❔ *не приходит код?*
+→ чекни уведомы в игре
+→ попробуй через 5 минут
 
-❔ *Как отвязать аккаунт?*
-→ Используйте /unlink #ТЭГ
+❔ *как отвязать акк?*
+→ юзай /unlink #тэг
 
-❔ *Потерял доступ к аккаунту?*
-→ Используйте /recover
+❔ *потерял акк?*
+→ юзай /recover
 
-❔ *Как перевести гемы?*
-→ /transfer #ТЭГ КОЛИЧЕСТВО
+❔ *как кинуть гемы?*
+→ /transfer #тэг количество
 
-❔ *Лимит переводов?*
+❔ *лимит переводов?*
 → 4000 гемов в день
 
-❔ *Как крутить колесо?*
+❔ *как крутить колесо?*
 → /spin - 1 раз в день
 
-❔ *Что такое Тайный Санта?*
-→ Сезонное событие в декабре
+❔ *что за тайный санта?*
+→ ивент в декабре
 
-❔ *Бот не работает?*
-→ Напишите @CoachBrawl";
+❔ *бот тупит?*
+→ напиши @CoachBrawl";
 
             await SendMessage(chatId, userId, message, "MarkdownV2", keyboard);
         }
@@ -1518,36 +1536,35 @@ private async Task SendMessage(long chatId, long userId, string text, string par
         {
             new object[]
             {
-                new { text = "🎮 Аккаунты", callback_data = "menu_accounts" },
-                new { text = "⭐ VIP-маркет", callback_data = "menu_vip" }
+                new { text = "🎮 акки", callback_data = "menu_accounts" },
+                new { text = "⭐ вип", callback_data = "menu_vip" }
     /////            new { text = "🛒 Магазин", callback_data = "menu_shop" }
             },
             new object[]
             {
-                new { text = "💰 Переводы", callback_data = "menu_transfers" },
-                new { text = "🎰 Колесо", callback_data = "menu_spin" }
+                new { text = "💎 гемы", callback_data = "menu_gems" },
+                new { text = "🎰 колесо", callback_data = "menu_spin" }
             },
             new object[]
             {
-          /////      new { text = "🎅 Тайный Санта", callback_data = "menu_santa" },
-                new { text = "👤 Профиль", callback_data = "menu_profile" }
+                new { text = "💰 переводы", callback_data = "menu_transfers" },
+                new { text = "👤 профиль", callback_data = "menu_profile" }
             },
             new object[]
             {
-                new { text = "📊 Онлайн", callback_data = "online_check" },
-                new { text = "📞 Поддержка", callback_data = "menu_support" }
+                new { text = "📊 онлайн", callback_data = "online_check" },
+                new { text = "📞 поддержка", callback_data = "menu_support" }
             }
         }
     };
 
     string message = 
-@"👑 *sh*
- *CoachBrawl*
+@"👑 *coachbrawl*
 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
 
-" + (hasAccount ? $"✅ *Аккаунт привязан:* `{accountTag}`" : "❌ *Аккаунт не привязан*\nОтправьте свой ТЭГ (например: #2PP)") + @"
+" + (hasAccount ? $"✅ *акк привязан:* `{accountTag}`" : "❌ *акк не привязан*\nкинь свой тэг (например: #2pp)") + @"
 
-📱 *Выберите раздел:*";
+📱 *выбери раздел:*";
 
     await SendMessage(chatId, userId, message, "MarkdownV2", keyboard);
 }
@@ -1576,10 +1593,10 @@ private async Task SendMessage(long chatId, long userId, string text, string par
         });
     }
     
-    // Всегда добавляем кнопку "Назад" в главное меню
+    // Всегда добавляем кнопку "назад" в главное меню
     buttons.Add(new object[]
     {
-        new { text = "← Назад в главное меню", callback_data = "menu_main" }
+        new { text = "← назад в главное меню", callback_data = "menu_main" }
     });
 
     var keyboard = new { inline_keyboard = buttons.ToArray() };
@@ -1587,11 +1604,11 @@ private async Task SendMessage(long chatId, long userId, string text, string par
     string message;
     if (linkedAccounts.Any())
     {
-        message = $"📋 *Ваши аккаунты:*\n\n{string.Join("\n", linkedAccounts.Select(t => $"• `{t}`"))}\n\nВсего: {linkedAccounts.Count}\n\nВыберите действие:";
+        message = $"📋 *твои акки:*\n\n{string.Join("\n", linkedAccounts.Select(t => $"• `{t}`"))}\n\nвсего: {linkedAccounts.Count}\n\nвыбери чё дальше:";
     }
     else
     {
-        message = "📭 *У вас нет привязанных аккаунтов*\n\nОтправьте свой ТЭГ или нажмите кнопку ниже:";
+        message = "📭 *у тебя нет привязанных акков*\n\nкинь свой тэг или жми кнопку ниже:";
     }
 
     await SendMessage(chatId, userId, message, "MarkdownV2", keyboard);
@@ -1602,7 +1619,7 @@ private async Task SendMessage(long chatId, long userId, string text, string par
             if (!_linkManager.TryGetAccountId(userId, out string accountTag))
             {
                 await SendMessage(chatId, userId, 
-                    "❌ *Сначала привяжите аккаунт!*\n\nОтправьте свой ТЭГ (например: #2PP)",
+                    "❌ *сначала привяжи акк!*\n\nкинь свой тэг (например: #2pp)",
                     "MarkdownV2");
                 return;
             }
@@ -1616,27 +1633,27 @@ private async Task SendMessage(long chatId, long userId, string text, string par
                 {
                     new object[]
                     {
-                        new { text = "📤 Новый перевод", callback_data = "transfer_new" }
+                        new { text = "📤 новый перевод", callback_data = "transfer_new" }
                     },
                     new object[]
                     {
-                        new { text = "📜 История", callback_data = "transfer_history_callback" },
-                        new { text = "📊 Лимиты", callback_data = "show_limits" }
+                        new { text = "📜 история", callback_data = "transfer_history_callback" },
+                        new { text = "📊 лимиты", callback_data = "show_limits" }
                     },
                     new object[]
                     {
-                        new { text = "← Назад", callback_data = "menu_main" }
+                        new { text = "← назад", callback_data = "menu_main" }
                     }
                 }
             };
 
             string message = 
-$@"💰 *ПЕРЕВОД ГЕМОВ*
+$@"💰 *перевод гемов*
 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
 
-📊 *Лимиты сегодня:*
-• Использовано: {gemsUsedToday}/{DAILY_GEMS_LIMIT} гемов
-• Осталось: {gemsRemaining} гемов
+📊 *лимиты сегодня:*
+• юзанул: {gemsUsedToday}/{DAILY_GEMS_LIMIT} гемов
+• осталось: {gemsRemaining} гемов
 • Сброс: 00:00 UTC
 
 📋 *Правила:*
@@ -1684,7 +1701,7 @@ $@"💰 *ПЕРЕВОД ГЕМОВ*
             buttons.Add(new object[]
             {
                 new { text = "📊 Инфо", callback_data = "santa_info" },
-                new { text = "← Назад", callback_data = "menu_main" }
+                new { text = "← назад", callback_data = "menu_main" }
             });
 
             var keyboard = new { inline_keyboard = buttons.ToArray() };
@@ -1709,7 +1726,7 @@ $@"🎅 *ТАЙНЫЙ САНТА*
                 {
                     new object[]
                     {
-                        new { text = "← Назад", callback_data = "menu_main" }
+                        new { text = "← назад", callback_data = "menu_main" }
                     }
                 }
             };
@@ -1744,7 +1761,7 @@ $@"🎅 *ТАЙНЫЙ САНТА*
 👑 *Поддержка*
 • @CoachBrawl
 
-🎥 *Tutorial:*
+🎥 *туториал:*
 https://youtube.com/shorts/Pj9TEaGSF4o";
 
             await SendMessage(chatId, userId, message, "MarkdownV2", keyboard);
@@ -1965,7 +1982,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
 
             await SendMessage(chatId, userId, 
                 $"✅ Токен аккаунта `{tag}` успешно сброшен!\n\n" +
-                $"Новая команда для входа:\n" +
+                $"новая команда для входа:\n" +
                 $"`{newLoadCommand}`",
                 "MarkdownV2");
         }
@@ -2046,7 +2063,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 debugInfo.AppendLine($"📊 *Статистика:*");
                 debugInfo.AppendLine($"   • Активных: {activeCount}");
                 debugInfo.AppendLine($"   • Бесплатных: {freeCount}");
-                debugInfo.AppendLine($"   • Всего: {account.Home.OfferBundles.Count}");
+                debugInfo.AppendLine($"   • всего: {account.Home.OfferBundles.Count}");
             }
 
             var keyboard = new
@@ -2056,7 +2073,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                     new object[]
                     {
                         new { text = "🛒 В магазин", callback_data = "shop_back_to_list" },
-                        new { text = "← Назад", callback_data = "menu_main" }
+                        new { text = "← назад", callback_data = "menu_main" }
                     }
                 }
             };
@@ -2069,7 +2086,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             if (!_linkManager.TryGetAccountId(userId, out string accountTag))
             {
                 await SendMessage(chatId, userId, 
-                    "❌ *Сначала привяжите аккаунт!*\n\nОтправьте свой игровой ТЭГ (например: `#2PP`)",
+                    "❌ *сначала привяжи акк!*\n\nкинь свой игровой тэг (например: `#2pp`)",
                     "MarkdownV2");
                 return;
             }
@@ -2138,7 +2155,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 if (!_linkManager.TryGetAccountId(userId, out string accountTag))
                 {
                     await SendMessage(chatId, userId, 
-                        "❌ *Сначала привяжите аккаунт!*\n\nОтправьте свой игровой ТЭГ (например: `#2PP`)",
+                        "❌ *сначала привяжи акк!*\n\nкинь свой игровой тэг (например: `#2pp`)",
                         "MarkdownV2");
                     return;
                 }
@@ -2207,7 +2224,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                         inline_keyboard = new object[]
                         {
                             new object[] { new { text = "📋 Мои покупки", callback_data = "my_claims_callback" } },
-                            new object[] { new { text = "← Назад", callback_data = "menu_main" } }
+                            new object[] { new { text = "← назад", callback_data = "menu_main" } }
                         }
                     };
                     
@@ -2306,7 +2323,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                     },
                     new
                     {
-                        text = "← Назад",
+                        text = "← назад",
                         callback_data = "menu_main"
                     }
                 });
@@ -2394,7 +2411,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 {
                     new object[]
                     {
-                        new { text = "← Назад в магазин", callback_data = "shop_back_to_list" }
+                        new { text = "← назад в магазин", callback_data = "shop_back_to_list" }
                     }
                 }
             };
@@ -2409,7 +2426,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             if (!_linkManager.TryGetAccountId(userId, out string accountTag))
             {
                 await SendMessage(chatId, userId, 
-                    "❌ *Сначала привяжите аккаунт!*\n\nОтправьте свой ТЭГ (например: #2PP)",
+                    "❌ *сначала привяжи акк!*\n\nкинь свой тэг (например: #2pp)",
                     "MarkdownV2");
                 return;
             }
@@ -2601,7 +2618,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 }
                 else
                 {
-                    message.AppendLine("⚠️ Нет информации о содержимом");
+                    message.AppendLine("⚠️ нет информации о содержимом");
                 }
                 
                 message.AppendLine("");
@@ -2623,9 +2640,9 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 
                 var timeLeft = offer.EndTime - DateTime.UtcNow;
                 if (timeLeft.TotalDays > 0)
-                    message.AppendLine($"⏳ *Осталось: {timeLeft.Days}д {timeLeft.Hours}ч*");
+                    message.AppendLine($"⏳ *осталось: {timeLeft.Days}д {timeLeft.Hours}ч*");
                 else if (timeLeft.TotalHours > 0)
-                    message.AppendLine($"⏳ *Осталось: {timeLeft.Hours}ч {timeLeft.Minutes}м*");
+                    message.AppendLine($"⏳ *осталось: {timeLeft.Hours}ч {timeLeft.Minutes}м*");
                 
                 message.AppendLine("");
                 
@@ -2652,7 +2669,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 {
                     new
                     {
-                        text = "← Назад",
+                        text = "← назад",
                         callback_data = "shop_back_to_list"
                     }
                 });
@@ -2864,7 +2881,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
         {
             if (!IsAdmin(userId))
             {
-                await SendMessage(chatId, userId, "❌ *Нет доступа!*", "MarkdownV2");
+                await SendMessage(chatId, userId, "❌ *нет доступа!*", "MarkdownV2");
                 return;
             }
             
@@ -2873,7 +2890,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 string filePath = "./skin_claims.json";
                 if (!File.Exists(filePath))
                 {
-                    await SendMessage(chatId, userId, "📭 *Нет запросов на скины!*", "MarkdownV2");
+                    await SendMessage(chatId, userId, "📭 *нет запросов на скины!*", "MarkdownV2");
                     return;
                 }
                 
@@ -2910,7 +2927,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 
                 message.AppendLine($"📊 *Статистика:*");
                 message.AppendLine($"• Ожидает: {pendingClaims.Count}");
-                message.AppendLine($"• Всего: {claims.Count}");
+                message.AppendLine($"• всего: {claims.Count}");
                 message.AppendLine($"• Обработано: {claims.Count(c => c.IsProcessed)}");
                 message.AppendLine("");
                 message.AppendLine("⚙️ *Команды:*");
@@ -2920,7 +2937,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 {
                     inline_keyboard = new object[]
                     {
-                        new object[] { new { text = "← Назад", callback_data = "menu_main" } }
+                        new object[] { new { text = "← назад", callback_data = "menu_main" } }
                     }
                 };
                 
@@ -2938,7 +2955,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
         {
             if (!IsAdmin(userId))
             {
-                await SendMessage(chatId, userId, "❌ *Нет доступа!*", "MarkdownV2");
+                await SendMessage(chatId, userId, "❌ *нет доступа!*", "MarkdownV2");
                 return;
             }
             
@@ -3102,7 +3119,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             }
             else
             {
-                message.AppendLine("⚠️ Нет информации о содержимом");
+                message.AppendLine("⚠️ нет информации о содержимом");
             }
             
             message.AppendLine("");
@@ -3124,9 +3141,9 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             
             var timeLeft = offer.EndTime - DateTime.UtcNow;
             if (timeLeft.TotalDays > 0)
-                message.AppendLine($"⏳ *Осталось: {timeLeft.Days}д {timeLeft.Hours}ч*");
+                message.AppendLine($"⏳ *осталось: {timeLeft.Days}д {timeLeft.Hours}ч*");
             else if (timeLeft.TotalHours > 0)
-                message.AppendLine($"⏳ *Осталось: {timeLeft.Hours}ч {timeLeft.Minutes}м*");
+                message.AppendLine($"⏳ *осталось: {timeLeft.Hours}ч {timeLeft.Minutes}м*");
             
             message.AppendLine("");
             
@@ -3247,7 +3264,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 {
                     inline_keyboard = new object[]
                     {
-                        new object[] { new { text = "← Назад", callback_data = "menu_main" } }
+                        new object[] { new { text = "← назад", callback_data = "menu_main" } }
                     }
                 };
                 
@@ -3274,7 +3291,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             message.AppendLine("▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
             message.AppendLine("");
             message.AppendLine("💰 *Гемы сегодня:*");
-            message.AppendLine($"• Использовано: **{gemsUsedToday}**/{DAILY_GEMS_LIMIT} гемов");
+            message.AppendLine($"• юзанул: **{gemsUsedToday}**/{DAILY_GEMS_LIMIT} гемов");
             message.AppendLine($"• Доступно: **{gemsRemaining}** гемов");
             message.AppendLine("");
             
@@ -3304,12 +3321,12 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                     },
                     new object[]
                     {
-                        new { text = "📜 История переводов", callback_data = "transfer_history_callback" },
-                        new { text = "📋 Мои аккаунты", callback_data = "my_accounts_list" }
+                        new { text = "📜 история переводов", callback_data = "transfer_history_callback" },
+                        new { text = "📋 мои акки", callback_data = "my_accounts_list" }
                     },
                     new object[]
                     {
-                        new { text = "← Назад", callback_data = "menu_main" }
+                        new { text = "← назад", callback_data = "menu_main" }
                     }
                 }
             };
@@ -3327,7 +3344,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 {
                     await SendMessage(chatId, userId,
                         "❌ *У вас нет привязанного аккаунта!*\n\n" +
-                        "Сначала привяжите аккаунт, отправив свой ТЭГ (например: `#2PP`)",
+                        "сначала привяжи акк, кинув свой тэг (например: `#2pp`)",
                         "MarkdownV2");
                     return;
                 }
@@ -3477,9 +3494,9 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 message.AppendLine("▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
                 message.AppendLine("");
                 
-                message.AppendLine("📊 *Лимиты сегодня:*");
-                message.AppendLine($"• Использовано: {gemsUsedAfter}/{DAILY_GEMS_LIMIT} гемов");
-                message.AppendLine($"• Осталось: {gemsRemainingAfter} гемов");
+                message.AppendLine("📊 *лимиты сегодня:*");
+                message.AppendLine($"• юзанул: {gemsUsedAfter}/{DAILY_GEMS_LIMIT} гемов");
+                message.AppendLine($"• осталось: {gemsRemainingAfter} гемов");
                 message.AppendLine($"• Сбросится в: 00:00 UTC");
                 message.AppendLine("");
                 
@@ -3507,16 +3524,16 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                         new object[]
                         {
                             new { text = "💰 Мой баланс", callback_data = "check_balance" },
-                            new { text = "📋 Мои аккаунты", callback_data = "my_accounts_list" }
+                            new { text = "📋 мои акки", callback_data = "my_accounts_list" }
                         },
                         new object[]
                         {
-                            new { text = "📊 Лимиты", callback_data = "show_limits" },
+                            new { text = "📊 лимиты", callback_data = "show_limits" },
                             new { text = "🔄 Ещё перевод", callback_data = "transfer_again" }
                         },
                         new object[]
                         {
-                            new { text = "← Назад", callback_data = "menu_main" }
+                            new { text = "← назад", callback_data = "menu_main" }
                         }
                     }
                 };
@@ -3561,7 +3578,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 if (!File.Exists(filePath))
                 {
                     await SendMessage(chatId, userId,
-                        "📭 *История переводов пуста!*\n" +
+                        "📭 *история переводов пуста!*\n" +
                         "Вы ещё не совершали переводов между аккаунтами.",
                         "MarkdownV2");
                     return;
@@ -3614,8 +3631,8 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 {
                     inline_keyboard = new object[]
                     {
-                        new object[] { new { text = "💰 Новый перевод", callback_data = "transfer_new" } },
-                        new object[] { new { text = "← Назад", callback_data = "menu_main" } }
+                        new object[] { new { text = "💰 новый перевод", callback_data = "transfer_new" } },
+                        new object[] { new { text = "← назад", callback_data = "menu_main" } }
                     }
                 };
                 
@@ -3639,7 +3656,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
 
             if (!_linkManager.TryGetAccountId(userId, out string accountTag))
             {
-                await SendMessage(chatId, userId, "❌ Сначала привяжите аккаунт, чтобы использовать колесо фортуны!", "MarkdownV2");
+                await SendMessage(chatId, userId, "❌ сначала привяжи акк, чтоб крутить колесо!", "MarkdownV2");
                 return;
             }
 
@@ -3675,7 +3692,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                     },
                     new object[]
                     {
-                        new { text = "← Назад", callback_data = "menu_main" }
+                        new { text = "← назад", callback_data = "menu_main" }
                     }
                 }
             };
@@ -3696,7 +3713,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             message.AppendLine("• ⚡ Очки силы (10-500)");
             message.AppendLine("• 👤 Новые бравлеры (шанс)");
             message.AppendLine("");
-            message.AppendLine($"🔥 *Ваша серия:* **{currentStreak}** дней подряд");
+            message.AppendLine($"🔥 *твоя серия:* **{currentStreak}** дней подряд");
             message.AppendLine($"🎁 *Бонус серии:* **+{Math.Min(currentStreak * 3, 50)}%** к награде");
             message.AppendLine("");
             message.AppendLine("🍀 *Нажмите кнопку ниже, чтобы попытать удачу!*");
@@ -4039,7 +4056,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                     },
                     new object[]
                     {
-                        new { text = "← Назад", callback_data = "menu_main" }
+                        new { text = "← назад", callback_data = "menu_main" }
                     }
                 }
             };
@@ -4098,7 +4115,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             {
                 inline_keyboard = new object[]
                 {
-                    new object[] { new { text = "← Назад", callback_data = "santa_back" } }
+                    new object[] { new { text = "← назад", callback_data = "santa_back" } }
                 }
             };
             
@@ -4404,7 +4421,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             {
                 inline_keyboard = new object[]
                 {
-                    new object[] { new { text = "← Назад", callback_data = "santa_back" } }
+                    new object[] { new { text = "← назад", callback_data = "santa_back" } }
                 }
             };
             
@@ -4446,7 +4463,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                     };
                     
                     message.AppendLine($"{medal} `{giver.AccountTag}`");
-                    message.AppendLine($"   Подарков: {giver.TotalGiftsSent} | Всего: {giver.TotalAmountSent}");
+                    message.AppendLine($"   Подарков: {giver.TotalGiftsSent} | всего: {giver.TotalAmountSent}");
                     message.AppendLine("");
                 }
             }
@@ -4481,7 +4498,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             {
                 inline_keyboard = new object[]
                 {
-                    new object[] { new { text = "← Назад", callback_data = "santa_back" } }
+                    new object[] { new { text = "← назад", callback_data = "santa_back" } }
                 }
             };
             
@@ -4508,7 +4525,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             message.AppendLine("• `/santa_balance` - Мой баланс");
             message.AppendLine("• `/santa_wish [текст]` - Пожелание");
             message.AppendLine("");
-            message.AppendLine("⚙️ *Лимиты:*");
+            message.AppendLine("⚙️ *лимиты:*");
             message.AppendLine($"• Максимально подарков в день: {MAX_GIFTS_PER_DAY}");
             message.AppendLine($"• Максимально гемов за раз: {MAX_GEMS_PER_GIFT}");
             message.AppendLine($"• Максимально монет за раз: {MAX_COINS_PER_GIFT}");
@@ -4520,7 +4537,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 inline_keyboard = new object[]
                 {
                     new object[] { new { text = "🎅 Участвовать", callback_data = "santa_join" } },
-                    new object[] { new { text = "← Назад", callback_data = "menu_main" } }
+                    new object[] { new { text = "← назад", callback_data = "menu_main" } }
                 }
             };
             
@@ -4628,7 +4645,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             {
                 inline_keyboard = new object[]
                 {
-                    new object[] { new { text = "← Назад", callback_data = "santa_back" } }
+                    new object[] { new { text = "← назад", callback_data = "santa_back" } }
                 }
             };
             
@@ -4651,7 +4668,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             message.AppendLine("▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
             message.AppendLine("");
             message.AppendLine("👥 *Участники:*");
-            message.AppendLine($"• Всего: {totalParticipants}");
+            message.AppendLine($"• всего: {totalParticipants}");
             message.AppendLine($"• Активных: {activeParticipants}");
             message.AppendLine("");
             message.AppendLine("🎁 *Подарки:*");
@@ -4681,7 +4698,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             {
                 inline_keyboard = new object[]
                 {
-                    new object[] { new { text = "← Назад", callback_data = "santa_back" } }
+                    new object[] { new { text = "← назад", callback_data = "santa_back" } }
                 }
             };
             
@@ -4692,7 +4709,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
         {
             if (!IsAdmin(userId))
             {
-                await SendMessage(chatId, userId, "❌ *Нет доступа!*", "MarkdownV2");
+                await SendMessage(chatId, userId, "❌ *нет доступа!*", "MarkdownV2");
                 return;
             }
 
@@ -4822,14 +4839,14 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             }
             catch (ArgumentException ex)
             {
-                await SendMessage(chatId, userId, $"❌ Неверный формат тега аккаунта: {ex.Message}", "MarkdownV2");
+                await SendMessage(chatId, userId, $"❌ неверный формат тэга: {ex.Message}", "MarkdownV2");
                 return;
             }
 
             Account account = Accounts.Load(accountId);
             if (account == null)
             {
-                await SendMessage(chatId, userId, $"❌ Аккаунт с тегом `{tag}` не найден.", "MarkdownV2");
+                await SendMessage(chatId, userId, $"❌ акк с тэго `{tag}` не найден.", "MarkdownV2");
                 return;
             }
 
@@ -4888,7 +4905,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                     inline_keyboard = new object[]
                     {
                         new object[] { new { text = "📊 Инфо", callback_data = "menu_profile" } },
-                        new object[] { new { text = "← Назад", callback_data = "menu_main" } }
+                        new object[] { new { text = "← назад", callback_data = "menu_main" } }
                     }
                 };
                 
@@ -4896,7 +4913,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             }
             else
             {
-                await SendMessage(chatId, userId, "❌ У вас нет привязанных аккаунтов.", "MarkdownV2");
+                await SendMessage(chatId, userId, "❌ у тебя нет привязанных акков.", "MarkdownV2");
             }
         }
 
@@ -4910,7 +4927,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 if (!accounts.Any())
                 {
                     await SendMessage(chatId, userId, 
-                        "❌ У вас нет привязанных аккаунтов.", 
+                        "❌ у тебя нет привязанных акков.", 
                         "MarkdownV2");
                     return;
                 }
@@ -4923,7 +4940,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                         new { text = $"🔗 {acc}", callback_data = $"unlink_confirm_{acc}" }
                     });
                 }
-                buttons.Add(new object[] { new { text = "← Назад", callback_data = "menu_main" } });
+                buttons.Add(new object[] { new { text = "← назад", callback_data = "menu_main" } });
 
                 var keyboard = new { inline_keyboard = buttons.ToArray() };
 
@@ -4955,15 +4972,15 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 {
                     new object[]
                     {
-                        new { text = "✅ Да, отвязать", callback_data = $"unlink_do_{tag}" },
-                        new { text = "❌ Нет", callback_data = "menu_accounts" }
+                        new { text = "✅ да, отвязать", callback_data = $"unlink_do_{tag}" },
+                        new { text = "❌ нет", callback_data = "menu_accounts" }
                     }
                 }
             };
 
             await SendMessage(chatId, userId,
-                $"⚠️ *Вы уверены, что хотите отвязать аккаунт* `{tag}`?\n\n" +
-                "После отвязки вы не сможете управлять этим аккаунтом через бота.",
+                $"⚠️ *точно хочешь отвязать акк* `{tag}`?\n\n" +
+                "после отвязки бот не сможет управлять этим акком.",
                 "MarkdownV2", confirmKeyboard);
         }
 
@@ -4972,7 +4989,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             var accounts = _linkManager.GetAllLinkedAccounts(userId).ToList();
             if (!accounts.Any())
             {
-                await SendMessage(chatId, userId, "❌ У вас нет привязанных аккаунтов.", "MarkdownV2");
+                await SendMessage(chatId, userId, "❌ у тебя нет привязанных акков.", "MarkdownV2");
                 return;
             }
 
@@ -5036,8 +5053,8 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             },
             new object[]
             {
-                new { text = "← Назад в аккаунты", callback_data = "menu_accounts" },
-                new { text = "← Главное меню", callback_data = "menu_main" }
+                new { text = "← назад в аккаунты", callback_data = "menu_accounts" },
+                new { text = "← главное меню", callback_data = "menu_main" }
             }
         }
     };
@@ -5189,7 +5206,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
             else
             {
                 await SendMessage(chatId, userId, 
-                    "❌ У вас нет привязанных аккаунтов.", 
+                    "❌ у тебя нет привязанных акков.", 
                     "MarkdownV2");
             }
         }
