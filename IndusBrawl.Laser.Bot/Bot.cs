@@ -55,10 +55,10 @@ public static class Program
         if (args.Length > 1) Port = int.Parse(args[1]);
         if (args.Length > 2)
             {
-                if (args[2] == "team1" || args[2] == "ranked" || args[2] == "guest" || args[2] == "host1") Mode = args[2];
+                if (args[2] == "team1" || args[2] == "ranked" || args[2] == "guest" || args[2] == "host1" || args[2] == "battle1") Mode = args[2];
                 else PickBrawler = int.Parse(args[2]);
             }
-            if (args.Length > 3) PickBrawler = int.Parse(args[3]);
+            if (args.Length > 3 && Mode == "ranked") PickBrawler = int.Parse(args[3]);
             if (Mode == "guest") { LoginId = long.Parse(args[3]); LoginToken = args[4]; }
             if (Mode == "host1") GuestId = long.Parse(args[3]);
             if (Mode == "battle1" && args.Length > 3) AdminPass = args[3];
