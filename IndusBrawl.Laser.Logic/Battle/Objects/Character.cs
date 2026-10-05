@@ -224,6 +224,8 @@ namespace IndusBrawl.Laser.Logic.Battle.Objects
         public int m_ticksSinceBotEnemyCheck = 100;
         public int m_lastAIAttackTick;
         public int m_lastUltiTick;
+        public int m_lastStrafeTick;
+        public int m_strafeDir = 1;
 
         private Character m_closestEnemy;
         private LogicVector2 m_closestEnemyPosition;
@@ -2259,6 +2261,16 @@ public void TickEffects()
             ActivateSkill(0, enemyPosition.X, enemyPosition.Y);
             BattlePlayer bot = GameObjectManager.GetBattle().GetPlayerWithObject(this.GetGlobalID());
             if (bot != null && bot.GetUltiCharge() >= 4000) ActivateSkill(1, enemyPosition.X, enemyPosition.Y);
+            // стрейф: не стоим на месте под огнём — дрейфуем перпендикулярно, меняя сторону
+            if (TicksGone - m_lastStrafeTick > 35)
+            {
+                m_lastStrafeTick = TicksGone;
+                m_strafeDir = -m_strafeDir;
+                int baseAngle = LogicMath.GetAngle(enemyPosition.X - Position.X, enemyPosition.Y - Position.Y);
+                int strafeAngle = baseAngle + 90 * m_strafeDir;
+                int dist = 250;
+                MoveTo(0, GetX() + (LogicMath.Sin(strafeAngle) * dist >> 10), GetY() + (LogicMath.Cos(strafeAngle) * dist >> 10), 0, 0, 0, 0);
+            }
             Random rand = new Random();
             bot.UsePin(2, GameObjectManager.GetBattle().GetTicksGone()); 
         }

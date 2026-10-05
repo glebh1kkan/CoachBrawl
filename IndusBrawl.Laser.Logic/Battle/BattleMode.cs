@@ -3231,7 +3231,7 @@ private void NotifyRankedRoundEnd()
                         }
                         if (matchOver && player.Avatar != null)
                         {
-                            player.Avatar.RankedRank = newProgress;
+                            player.Avatar.RankedRank = newRank;
                             if (player.IsBot() == 0) LogicServerListener.Instance?.SaveAccount(player.AccountId);
                         }
 

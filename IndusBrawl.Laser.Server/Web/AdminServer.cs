@@ -365,7 +365,7 @@ namespace IndusBrawl.Laser.Server.Web
                 skins = account.Home.UnlockedSkins?.Count ?? 0,
                 vip = avatar.HasVIP(),
                 vipExpire = avatar.HasVIP() ? avatar.VIPExpire : (DateTime?)null,
-                rank = avatar.RankedRank > 19 ? (avatar.RankedRank / 1000) + 1 : avatar.RankedRank,
+                rank = avatar.RankedRank,
                 banned = avatar.Banned,
                 online = Sessions.IsSessionActive(account.AccountId),
                 lastOnline = avatar.LastOnline
@@ -716,13 +716,18 @@ namespace IndusBrawl.Laser.Server.Web
             {
                 int rank = Int(body, "rank", 0, 19);
                 int progress = rank <= 0 ? 0 : (rank - 1) * 1000;
-                avatar.RankedRank = progress;
+                int shown = rank <= 0 ? 1 : rank;
+                avatar.RankedRank = shown;
                 if (account.Home != null)
                 {
                     account.Home.RankedSoloProgress = progress;
                     account.Home.RankedTrioProgress = progress;
-                    account.Home.RankedSoloRank = rank <= 0 ? 1 : rank;
-                    account.Home.RankedTrioRank = rank <= 0 ? 1 : rank;
+                    account.Home.RankedSoloRank = shown;
+                    account.Home.RankedTrioRank = shown;
+                    if (account.Home.RankedSoloMaxRank < shown) account.Home.RankedSoloMaxRank = shown;
+                    if (account.Home.RankedTrioMaxRank < shown) account.Home.RankedTrioMaxRank = shown;
+                    if (account.Home.RankedSoloMaxProgress < progress) account.Home.RankedSoloMaxProgress = progress;
+                    if (account.Home.RankedTrioMaxProgress < progress) account.Home.RankedTrioMaxProgress = progress;
                 }
             }
 

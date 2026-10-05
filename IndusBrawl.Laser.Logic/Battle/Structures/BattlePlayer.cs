@@ -1,4 +1,4 @@
-﻿﻿namespace IndusBrawl.Laser.Logic.Battle.Structures
+﻿namespace IndusBrawl.Laser.Logic.Battle.Structures
 {
     using Newtonsoft.Json;
     using IndusBrawl.Laser.Logic.Avatar;
@@ -516,7 +516,7 @@
             player.PlayerIndex = playerIndex;
             player.TeamIndex = teamIndex;
             player.SessionId = -1;
-            player.Bot = 1;
+            player.Bot = 2; // умная ветка ИИ: увёртывания, ульта, быстрые атаки
 
             player.CharacterIds[0] = character;
             player.CharacterDatas = new CharacterData[3];
