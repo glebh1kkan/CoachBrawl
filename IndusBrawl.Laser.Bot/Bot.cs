@@ -11,6 +11,9 @@ using IndusBrawl.Laser.Titan.Cryptography;
 using IndusBrawl.Laser.Titan.DataStream;
 using IndusBrawl.Laser.Titan.Library;
 using IndusBrawl.Laser.Titan.Library.Blake;
+using IndusBrawl.Laser.Logic.Util;
+using System.Net;
+using System.Net.Http;
 using static IndusBrawl.Laser.Titan.Library.TweetNaCl;
 
 namespace IndusBrawl.Laser.Bot;
@@ -37,6 +40,11 @@ public static class Program
     static long LoginId = 0;
     static string LoginToken = "";
     static long GuestId = 0;
+    static long MyAccountId = 0;
+    static string AdminPass = "";
+    static long UdpSessionId = -1;
+    static System.Net.Sockets.UdpClient Udp;
+    static int UdpTick = 0;
     static long MatchId;
     static DateTime StartAt = DateTime.UtcNow;
     static DateTime LastRecv = DateTime.UtcNow;
@@ -53,6 +61,7 @@ public static class Program
             if (args.Length > 3) PickBrawler = int.Parse(args[3]);
             if (Mode == "guest") { LoginId = long.Parse(args[3]); LoginToken = args[4]; }
             if (Mode == "host1") GuestId = long.Parse(args[3]);
+            if (Mode == "battle1" && args.Length > 3) AdminPass = args[3];
         try
         {
             Run();
@@ -298,7 +307,14 @@ public static class Program
         switch (type)
         {
             case 20104: // auth ok
-                Log("LOGIN OK, жду дом...");
+                try
+                {
+                    var bs = new ByteStream(payload, payload.Length);
+                    bs.ReadLong();
+                    MyAccountId = bs.ReadLong();
+                    Log($"LOGIN OK acc={MyAccountId}, жду дом...");
+                }
+                catch { Log("LOGIN OK, жду дом..."); }
                 break;
             case 24101: // OwnHomeData
                 if (Step == 0)
@@ -317,6 +333,11 @@ public static class Program
                     else if (Mode == "guest")
                     {
                         Log("дома получены, жду инвайт...");
+                    }
+                    else if (Mode == "battle1")
+                    {
+                        Log("дома получены, встаю в обычный бой (слот 1)");
+                        SendMatchmake(1);
                     }
                     else
                     {
@@ -373,8 +394,23 @@ public static class Program
             case 22156: Log("HERO PICKED echo"); break;
             case 22158: Log("FINAL PREP"); break;
             case 20559:
-                Log("START LOADING — БОЙ СТАРТУЕТ, ТЕСТ ПРОЙДЕН");
-                Environment.Exit(0);
+                if (Mode == "battle1" && UdpSessionId < 0)
+                {
+                    Log("START LOADING, подключаюсь по UDP и стою афк до конца боя");
+                    UdpJoin();
+                }
+                else if (Mode != "battle1")
+                {
+                    Log("START LOADING — БОЙ СТАРТУЕТ, ТЕСТ ПРОЙДЕН");
+                    Environment.Exit(0);
+                }
+                break;
+            case 23456: // BattleEndMessage
+                if (Mode == "battle1")
+                {
+                    Log("BATTLE END получен, ТЕСТ БОЯ ПРОЙДЕН");
+                    Environment.Exit(0);
+                }
                 break;
         }
     }
@@ -408,6 +444,65 @@ public static class Program
         var s = new ByteStream(8);
         s.WriteBoolean(ready);
         SendRaw(14355, Fin(s), 1);
+    }
+
+    static void UdpJoin()
+    {
+        try
+        {
+            string tag = LogicLongCodeGenerator.ToCode(MyAccountId);
+            var handler = new HttpClientHandler { CookieContainer = new CookieContainer() };
+            using var h2 = new HttpClient(handler);
+            string loginJson = "{\"login\":\"admin\",\"password\":\"" + AdminPass + "\"}";
+            h2.PostAsync("http://127.0.0.1:8086/api/login",
+                new StringContent(loginJson, System.Text.Encoding.UTF8, "application/json")).Wait();
+            string js = h2.GetStringAsync("http://127.0.0.1:8086/api/test/session?tag=" + Uri.EscapeDataString(tag)).Result;
+            Log("session info: " + js);
+            string marker = "\"udpSessionId\":";
+            long sid = long.Parse(js.Split(marker)[1].Split('}')[0].Trim().TrimEnd(','));
+            UdpSessionId = sid;
+            Udp = new System.Net.Sockets.UdpClient();
+            Udp.Connect(Host, 1337);
+            new Thread(() =>
+            {
+                try
+                {
+                    while (true)
+                    {
+                        UdpSendInput();
+                        Thread.Sleep(200);
+                    }
+                }
+                catch { }
+            }).Start();
+            Log("udp join session=" + sid + ", стою афк...");
+        }
+        catch (Exception ex) { Log("udp join fail: " + ex.Message); }
+    }
+
+    static void UdpSendInput()
+    {
+        var bits = new IndusBrawl.Laser.Titan.DataStream.BitStream(16);
+        bits.WritePositiveInt(UdpTick++, 14);
+        bits.WritePositiveInt(0, 10);
+        bits.WritePositiveInt(0, 13);
+        bits.WritePositiveInt(0, 10);
+        bits.WritePositiveInt(0, 10);
+        bits.WritePositiveInt(0, 10);
+        bits.WritePositiveInt(0, 5); // count=0, стою
+        byte[] raw = bits.GetByteArray();
+        byte[] body = new byte[9]; // 72 бита заголовка пустого инпута
+        Buffer.BlockCopy(raw, 0, body, 0, Math.Min(9, raw.Length));
+        var bs = new ByteStream(32);
+        bs.WriteLong(UdpSessionId);
+        bs.WriteShort((short)0);
+        bs.WriteVInt(10555);
+        bs.WriteVInt(body.Length);
+        byte[] head = Fin(bs);
+        byte[] pkt = new byte[head.Length + body.Length];
+        Buffer.BlockCopy(head, 0, pkt, 0, head.Length);
+        Buffer.BlockCopy(body, 0, pkt, head.Length, body.Length);
+        lock (Udp) Udp.Send(pkt, pkt.Length);
     }
 
     static void SendMatchmake(int slot)

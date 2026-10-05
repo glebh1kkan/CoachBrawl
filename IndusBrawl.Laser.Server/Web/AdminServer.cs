@@ -167,6 +167,7 @@ namespace IndusBrawl.Laser.Server.Web
                         ("GET", "/content") => ContentStatus(),
                         ("POST", "/content/test-tags") => ContentTestTags(body),
                         ("POST", "/content/refresh") => ContentRefresh(),
+                        ("GET", "/test/session") => TestSession(query["tag"].ToString()),
                         ("POST", "/maintenance") => Maintenance(body),
                         _ => throw new ApiError(404, "Не найдено")
                     };
@@ -585,6 +586,16 @@ namespace IndusBrawl.Laser.Server.Web
             {
                 throw new ApiError(500, "Не смог пересчитать: " + ex.Message);
             }
+        }
+
+        // ---------- Тест-бот ----------
+
+        private object TestSession(string tag)
+        {
+            Account account = LoadAccount(tag, out long id);
+            var session = Sessions.GetSession(id);
+            if (session?.Connection == null) throw new ApiError(404, "Нет активной сессии");
+            return new { tag, accountId = id, udpSessionId = session.Connection.UdpSessionId };
         }
 
         private static List<JObject> ReadPayments()
