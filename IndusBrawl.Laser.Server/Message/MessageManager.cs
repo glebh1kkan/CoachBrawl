@@ -91,7 +91,8 @@ namespace IndusBrawl.Laser.Server.Message
 
         public bool IsAlive()
         {
-            return (int)(DateTime.UtcNow - LastKeepAlive).TotalSeconds < 15;
+            // 30 сек тишины (драфт ранкеда долгий, кипэлайв может не ходить)
+            return (int)(DateTime.UtcNow - LastKeepAlive).TotalSeconds < 30;
             //return true;
         }
 
@@ -317,23 +318,8 @@ namespace IndusBrawl.Laser.Server.Message
     mp_thestealdev player = match.GetPlayer(HomeMode.Avatar.AccountId);
     if (player == null) { Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: not in plist"); return; }
 
-    int g = GlobalId.CreateGlobalId(16, message.BrawlerId);
-    var characterData = DataTables.Get(16).GetDataByGlobalId<CharacterData>(g);
-    if (characterData == null) g = GlobalId.CreateGlobalId(16, 0);
-
-    if (characterData != null && (characterData.LockedForChronos || characterData.Disabled || !characterData.IsHero()))
-        g = GlobalId.CreateGlobalId(16, 0);
-
-    if (!HomeMode.Avatar.HasHero(g))
-    {
-        Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: REJECT brawlerId={message.BrawlerId} g={g} pickType={message.PickType} (no hero)");
-        Connection.Send(new OutOfSyncMessage());
-        return;
-    }
-
-    Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: pick brawlerId={message.BrawlerId} g={g} pickType={message.PickType}");
-
-    // выбор гаджета/пассивки/гиперзаряда в драфте: героя не трогаем, ставим аксессуар
+    // выбор гаджета/пассивки/гиперзаряда в драфте — ДО проверки героя:
+    // BrawlerId тут это id карты аксессуара, а не бойца
     if (message.PickType != 0 && message.PickType != 1)
     {
         var accCard = DataTables.Get(23).GetData<CardData>(message.BrawlerId);
@@ -361,6 +347,22 @@ namespace IndusBrawl.Laser.Server.Message
         match.SendHeroDataUpdated(player);
         return;
     }
+
+    int g = GlobalId.CreateGlobalId(16, message.BrawlerId);
+    var characterData = DataTables.Get(16).GetDataByGlobalId<CharacterData>(g);
+    if (characterData == null) g = GlobalId.CreateGlobalId(16, 0);
+
+    if (characterData != null && (characterData.LockedForChronos || characterData.Disabled || !characterData.IsHero()))
+        g = GlobalId.CreateGlobalId(16, 0);
+
+    if (!HomeMode.Avatar.HasHero(g))
+    {
+        Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: REJECT brawlerId={message.BrawlerId} g={g} pickType={message.PickType} (no hero)");
+        Connection.Send(new OutOfSyncMessage());
+        return;
+    }
+
+    Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: pick brawlerId={message.BrawlerId} g={g} pickType={message.PickType}");
 
     player.ca_thestealdev = g;
     
