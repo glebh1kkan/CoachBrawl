@@ -114,7 +114,8 @@ public static class Program
         while (DateTime.UtcNow < deadline)
         {
             Pump();
-            if ((DateTime.UtcNow - LastRecv).TotalSeconds > 45)
+            // в бою TCP тишина норма (всё идёт по UDP) — ждём до общего дедлайна
+            if (UdpSessionId < 0 && (DateTime.UtcNow - LastRecv).TotalSeconds > 45)
                 throw new Exception("таймаут: сервер молчит 45 сек");
             Thread.Sleep(50);
         }
