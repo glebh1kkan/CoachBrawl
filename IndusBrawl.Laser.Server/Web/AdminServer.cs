@@ -168,6 +168,8 @@ namespace IndusBrawl.Laser.Server.Web
                         ("POST", "/content/test-tags") => ContentTestTags(body),
                         ("POST", "/content/refresh") => ContentRefresh(),
                         ("GET", "/test/session") => TestSession(query["tag"].ToString()),
+                        ("GET", "/teams") => TeamList(),
+                        ("POST", "/team/add") => TeamAdd(body),
                         ("POST", "/maintenance") => Maintenance(body),
                         _ => throw new ApiError(404, "Не найдено")
                     };
@@ -611,6 +613,69 @@ namespace IndusBrawl.Laser.Server.Web
             var session = Sessions.GetSession(id);
             if (session?.Connection == null) throw new ApiError(404, "Нет активной сессии");
             return new { tag, accountId = id, udpSessionId = session.Connection.UdpSessionId };
+        }
+
+        // ---------- Команды ----------
+
+        private object TeamList()
+        {
+            var list = new List<object>();
+            for (long id = 1; id <= 10000; id++)
+            {
+                var team = IndusBrawl.Laser.Server.Logic.Game.Teams.Get(id);
+                if (team == null) continue;
+                list.Add(new
+                {
+                    id = team.Id,
+                    type = team.Type,
+                    eventSlot = team.EventSlot,
+                    members = team.Members.Select(m => new
+                    {
+                        accountId = m.AccountId,
+                        ready = m.IsReady,
+                        owner = m.IsOwner,
+                        teamIndex = m.TeamIndex
+                    }).ToList()
+                });
+            }
+            return list;
+        }
+
+        private object TeamAdd(JObject body)
+        {
+            long teamId = (long?)body["teamId"] ?? 0;
+            var team = IndusBrawl.Laser.Server.Logic.Game.Teams.Get(teamId);
+            if (team == null) throw new ApiError(404, "Команда не найдена (уже распущена?)");
+            Account account = LoadAccount((string)body["tag"], out long id);
+            var session = Sessions.GetSession(id);
+            if (session?.Connection == null || session.Home == null)
+                throw new ApiError(409, "Игрок не в сети — затащить можно только онлайн");
+            if (team.GetMember(id) != null) throw new ApiError(409, "Уже в команде");
+
+            var member = new IndusBrawl.Laser.Logic.Team.TeamMember();
+            member.AccountId = id;
+            member.CharacterId = session.Home.Home.CharacterId;
+            member.DisplayData = new IndusBrawl.Laser.Logic.Avatar.Structures.PlayerDisplayData(
+                session.Home.Home.ThumbnailId, session.Home.Home.NameColorId, account.Avatar.Name);
+            member.homeMode = session.Home;
+            try
+            {
+                var hero = account.Avatar.GetHero(session.Home.Home.CharacterId);
+                if (hero != null)
+                {
+                    member.SkinId = IndusBrawl.Laser.Logic.Data.Helper.GlobalId.CreateGlobalId(29, hero.SelectedSkinId);
+                    member.HeroTrophies = hero.Trophies;
+                    member.HeroHighestTrophies = hero.HighestTrophies;
+                    member.HeroLevel = hero.PowerLevel;
+                }
+            }
+            catch { }
+            member.IsOwner = false;
+            member.State = 0;
+            team.Members.Add(member);
+            account.Avatar.TeamId = team.Id;
+            team.TeamUpdated();
+            return new { added = true, teamId = team.Id, tag = TagOf(id) };
         }
 
         private static List<JObject> ReadPayments()
