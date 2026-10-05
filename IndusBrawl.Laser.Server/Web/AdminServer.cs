@@ -458,7 +458,19 @@ namespace IndusBrawl.Laser.Server.Web
                     throw new ApiError(400, $"Слот {slot}: модификаторы 0..100");
             }
 
-            File.WriteAllText("gameplay.json", JsonConvert.SerializeObject(new { slots }, Formatting.Indented));
+            // ключи файла: game_modes / modificators (так читает Events.LoadSettings)
+            var fileSlots = new JArray();
+            foreach (JObject s in slots)
+            {
+                fileSlots.Add(new JObject
+                {
+                    ["slot"] = (int?)s["slot"] ?? 0,
+                    ["location"] = (int?)s["location"] ?? 0,
+                    ["game_modes"] = new JArray(((JArray)s["modes"] ?? new JArray()).Select(m => m.ToString())),
+                    ["modificators"] = new JArray(((JArray)s["modifi"] ?? new JArray()).Select(m => (int)m))
+                });
+            }
+            File.WriteAllText("gameplay.json", JsonConvert.SerializeObject(new { slots = fileSlots }, Formatting.Indented));
             try { Events.Reload(); }
             catch (Exception ex) { throw new ApiError(500, "Сохранено, но ивенты не пересоздались: " + ex.Message); }
             return new { saved = slots.Count };
