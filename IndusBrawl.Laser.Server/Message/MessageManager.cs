@@ -1991,7 +1991,7 @@ private void GetLeaderboardReceived(GetLeaderboardMessage message)
         }
         private void LoginReceived(AuthenticationMessage message)
         {
-            if (message.Version != "53.007")
+            if (message.Version != "53.007" && message.Version != "53.170" && message.Version != "53.176")
             {
                 Connection.Send(new AuthenticationFailedMessage()
                 {
