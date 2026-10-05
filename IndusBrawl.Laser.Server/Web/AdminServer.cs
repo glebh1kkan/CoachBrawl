@@ -260,11 +260,14 @@ namespace IndusBrawl.Laser.Server.Web
 
             string token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
             _sessions[token] = DateTime.UtcNow + SESSION_TTL;
+            // за nginx (https) — Secure, напрямую по http (боты, локалка) — без Secure, иначе куку не примут
+            bool isHttps = context.Request.IsHttps
+                || context.Request.Headers["X-Forwarded-Proto"].ToString().Equals("https", StringComparison.OrdinalIgnoreCase);
             context.Response.Cookies.Append(COOKIE, token, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
+                Secure = isHttps,
+                SameSite = isHttps ? SameSiteMode.Strict : SameSiteMode.Lax,
                 MaxAge = SESSION_TTL,
                 Path = "/"
             });

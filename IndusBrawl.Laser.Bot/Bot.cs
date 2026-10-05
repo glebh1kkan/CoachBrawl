@@ -454,8 +454,9 @@ public static class Program
             var handler = new HttpClientHandler { CookieContainer = new CookieContainer() };
             using var h2 = new HttpClient(handler);
             string loginJson = "{\"login\":\"admin\",\"password\":\"" + AdminPass + "\"}";
-            h2.PostAsync("http://127.0.0.1:8086/api/login",
-                new StringContent(loginJson, System.Text.Encoding.UTF8, "application/json")).Wait();
+            var lr = h2.PostAsync("http://127.0.0.1:8086/api/login",
+                new StringContent(loginJson, System.Text.Encoding.UTF8, "application/json")).Result;
+            Log("admin login: " + ((int)lr.StatusCode) + " " + lr.Content.ReadAsStringAsync().Result);
             string js = h2.GetStringAsync("http://127.0.0.1:8086/api/test/session?tag=" + Uri.EscapeDataString(tag)).Result;
             Log("session info: " + js);
             string marker = "\"udpSessionId\":";
