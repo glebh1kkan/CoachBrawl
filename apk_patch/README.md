@@ -33,3 +33,11 @@ cp CoachBrawl.apk /root/CoachBrawl/run/wwwroot/
 5. без запущенной frida с этим скриптом игра пойдёт на сервера supercell (редиректа нет)
 
 udp-бои отдельно хукать не надо: адрес udp клиент берёт из сообщения сервера.
+
+## сборка coach_redirect (нужен android-ndk, проверено на r29)
+
+```bash
+export PATH=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+aarch64-linux-android24-clang -shared -fPIC -O2 -o libcoach_redirect_arm64.so coach_redirect.c -llog -ldl
+armv7a-linux-androideabi24-clang -shared -fPIC -O2 -o libcoach_redirect_arm.so coach_redirect.c -llog -ldl
+```
