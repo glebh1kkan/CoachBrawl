@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# rebuild.py — точная пересборка ShuzaBrawl.apk через central directory
+# rebuild.py — точная пересборка base-client.apk через central directory
 # (локальные заголовки в оригинале рвутся на 781М — идём по central).
 # нетронутые записи копируются побайтово, меняются только заданные файлы.
 import struct, zlib
@@ -11,7 +11,7 @@ def zenc(data, level=6):
     c = zlib.compressobj(level, zlib.DEFLATED, -15)
     return c.compress(data) + c.flush()
 
-SRC = "/root/apks/ShuzaBrawl-orig.apk"
+SRC = "/root/apks/base-client.apk"
 DST = "/root/apks/CoachBrawl-test-unsigned.apk"
 
 OLD_IP = b"148.113.240.165"

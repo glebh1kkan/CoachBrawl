@@ -43,15 +43,15 @@ aarch64-linux-android24-clang -shared -fPIC -O2 -o libcoach_redirect_arm64.so co
 armv7a-linux-androideabi24-clang -shared -fPIC -O2 -o libcoach_redirect_arm.so coach_redirect.c -llog -ldl
 ```
 
-## v4: база — оригинальный ShuzaBrawl.apk (рекомендуемый путь)
+## v4: база — оригинальный клиент 53.007 (рекомендуемый путь)
 
-оригинал: пакет `com.sh.shuzybrawl`, версия `53.007` (совпадает с сервером),
+исходный пакет: `com.sh.shuzybrawl`, версия `53.007` (совпадает с сервером),
 frida-мод `libindusbrawl.so` + скрипт `libindusbrawl.script.so` (arm64) /
 конфиг `libindusbrawl.c.so` + скрипт `libindusbrawl.s.so` (arm).
 скрипты вели на `148.113.240.165:9339`.
 
 патч под coachbrawl (без apktool — архив у модеров битый для него):
-1. `7z x ShuzaBrawl.apk` (7z терпит битые заголовки, unzip — нет)
+1. `7z x base-client.apk` (7z терпит битые заголовки, unzip — нет)
 2. в `lib/arm64-v8a/libindusbrawl.script.so`: `148.113.240.165` → `150.241.70.48`,
    `Telegram: @ShuzaBrawl` → `Telegram: @CoachBrawl`
 3. в `lib/armeabi-v7a/libindusbrawl.c.so` (json): ip → наш
