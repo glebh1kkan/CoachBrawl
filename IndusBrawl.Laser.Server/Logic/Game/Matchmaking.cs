@@ -373,6 +373,18 @@ namespace IndusBrawl.Laser.Server.Logic.Game
                 }
             }
 
+            // тест с ботами: ранкед не ждёт 6 живых — стартует через ~5 сек после
+            // первого игрока, остальных добирают боты (RankedMatchRegulator)
+            if (IsRanked && Queue.Count >= 1 && Queue.Count < PlayersRequired
+                && SecondsLeft <= RANKED_SEARCH_TIMEOUT - 5)
+            {
+                var quick = Queue.Take(Queue.Count).ToList();
+                Queue.RemoveRange(0, quick.Count);
+                SecondsLeft = RANKED_SEARCH_TIMEOUT;
+                Console.WriteLine($"[Matchmaking] Ranked quick start: {quick.Count} players for slot {EventData.Slot}");
+                StartRankedMatch(quick);
+            }
+
             // таймаут
             if (Queue.Count > 0 && Queue.Count < PlayersRequired && SecondsLeft <= 0)
             {
