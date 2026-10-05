@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -49,10 +50,14 @@ namespace IndusBrawl.Laser.Server.Web
                     var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
                     if (Directory.Exists(wwwrootPath))
                     {
+                        var contentTypes = new FileExtensionContentTypeProvider();
+                        contentTypes.Mappings[".apk"] = "application/vnd.android.package-archive";
+                        contentTypes.Mappings[".js"] = "application/javascript; charset=utf-8";
                         app.UseStaticFiles(new StaticFileOptions
                         {
                             FileProvider = new PhysicalFileProvider(wwwrootPath),
-                            RequestPath = ""
+                            RequestPath = "",
+                            ContentTypeProvider = contentTypes
                         });
                         Console.WriteLine($"[WEB] Статика из: {wwwrootPath}");
                     }
