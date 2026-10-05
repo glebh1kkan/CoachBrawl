@@ -1402,7 +1402,7 @@ private async Task SendMessage(long chatId, long userId, string text, string par
                 Console.WriteLine($"[Unlink] Ошибка при сбросе токена: {ex.Message}");
                 await SendMessage(chatId, userId,
                     $"✅ *Аккаунт `{tag}` отвязан, но возникла ошибка при сбросе токена.*\n\n" +
-                    "Обратитесь к администратору @LostBrawl",
+                    "Обратитесь к администратору @CoachBrawl",
                     "MarkdownV2");
             }
         }
@@ -1428,9 +1428,9 @@ private async Task SendMessage(long chatId, long userId, string text, string par
             {
                 inline_keyboard = new object[]
                 {
-                    new object[] { new { text = "👤 Администратор", url = "https://t.me/LostBrawl" } },
-                    new object[] { new { text = "📢 Канал", url = "https://t.me/lostbrawl" } },
-                    new object[] { new { text = "🌐 Сайт", url = "https://lostbrawl.mooo.com/" } },
+                    new object[] { new { text = "👤 Администратор", url = "https://t.me/CoachBrawl" } },
+                    new object[] { new { text = "📢 Канал", url = "https://t.me/coachbrawl" } },
+                    new object[] { new { text = "🌐 Сайт", url = "https://coachbrawl.mooo.com/" } },
                     new object[] { new { text = "❓ Частые вопросы", callback_data = "support_faq" } },
                     new object[] { new { text = "← Назад", callback_data = "menu_main" } }
                 }
@@ -1441,13 +1441,13 @@ private async Task SendMessage(long chatId, long userId, string text, string par
 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
 
 👑 *По вопросам писать:*
-• @LostBrawl
+• @CoachBrawl
 
 🌐 *Наш сайт:*
-• https://lostbrawl.mooo.com/
+• https://coachbrawl.mooo.com/
 
 📢 *Telegram канал:*
-• @lostbrawl
+• @coachbrawl
 
 🎥 *Tutorial:*
 • https://youtube.com/shorts/Pj9TEaGSF4o
@@ -1468,7 +1468,7 @@ private async Task SendMessage(long chatId, long userId, string text, string par
             {
                 inline_keyboard = new object[]
                 {
-                    new object[] { new { text = "📞 Связаться", url = "https://t.me/LostBrawl" } },
+                    new object[] { new { text = "📞 Связаться", url = "https://t.me/CoachBrawl" } },
                     new object[] { new { text = "← Назад", callback_data = "menu_support" } }
                 }
             };
@@ -1503,7 +1503,7 @@ private async Task SendMessage(long chatId, long userId, string text, string par
 → Сезонное событие в декабре
 
 ❔ *Бот не работает?*
-→ Напишите @LostBrawl";
+→ Напишите @CoachBrawl";
 
             await SendMessage(chatId, userId, message, "MarkdownV2", keyboard);
         }
@@ -1542,7 +1542,7 @@ private async Task SendMessage(long chatId, long userId, string text, string par
 
     string message = 
 @"👑 *sh*
- *LostBrawl*
+ *CoachBrawl*
 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
 
 " + (hasAccount ? $"✅ *Аккаунт привязан:* `{accountTag}`" : "❌ *Аккаунт не привязан*\nОтправьте свой ТЭГ (например: #2PP)") + @"
@@ -1742,7 +1742,7 @@ $@"🎅 *ТАЙНЫЙ САНТА*
 • Дарите подарки другим
 
 👑 *Поддержка*
-• @LostBrawl
+• @CoachBrawl
 
 🎥 *Tutorial:*
 https://youtube.com/shorts/Pj9TEaGSF4o";
@@ -3753,7 +3753,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                     Console.WriteLine($"[WheelSpin] ОШИБКА: Не удалось отправить награду пользователю {userId}");
                     
                     await SendMessage(chatId, userId,
-                        "❌ Не удалось выдать награду. Свяжитесь с администратором @LostBrawl\n\n" +
+                        "❌ Не удалось выдать награду. Свяжитесь с администратором @CoachBrawl\n\n" +
                         "⚠️ Время спина уже зафиксировано, повторная попытка невозможна!",
                         "MarkdownV2");
                     return;
@@ -3813,7 +3813,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 Console.WriteLine($"[WheelSpin] StackTrace: {ex.StackTrace}");
                 
                 await SendMessage(chatId, userId,
-                    "❌ Произошла критическая ошибка. Свяжитесь с администратором @LostBrawl",
+                    "❌ Произошла критическая ошибка. Свяжитесь с администратором @CoachBrawl",
                     "MarkdownV2");
             }
         }
@@ -5438,7 +5438,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 var notification = new Notification
                 {
                     Id = 81,
-                    MessageEntry = $"Ваш код для привязки в LostBrawl ID: {code}",
+                    MessageEntry = $"Ваш код для привязки в CoachBrawl ID: {code}",
                     IsViewed = false
                 };
 
@@ -5485,7 +5485,7 @@ https://youtube.com/shorts/Pj9TEaGSF4o";
                 var notification = new Notification
                 {
                     Id = 94,
-                    MessageEntry = "Аккаунт Telegram успешно привязан к боту @lostbrawl_bot",
+                    MessageEntry = "Аккаунт Telegram успешно привязан к боту @coachbrawl_bot",
                     IsViewed = false,
                     SkinID = skinId
                 };

@@ -1,22 +1,14 @@
-# Push LostBrawl на GitHub
+# Push CoachBrawl на GitHub
 
-Репо: https://github.com/glebh1kkan/LostBrawl (private)
+Репо: https://github.com/glebh1kkan/CoachBrawl (private)
 Локально: `main`, `dev`, тег `v0.1-shuza-base`.
 
-## 1. Создай пустой private репозиторий (1 минута, делаешь ты)
-- Открой https://github.com/new
-- Owner: glebh1kkan, Name: LostBrawl, Private
-- НЕ ставь README / .gitignore / license -> Create repository
+## Создать репо (ты)
+https://github.com/new -> Owner: glebh1kkan, Name: CoachBrawl, Private, без README
 
-## 2. Запушь (делаю я, как только репо создан)
+## Пуш (я)
 ```bash
-cd /root/LostBrawl
+git remote set-url origin https://github.com/glebh1kkan/CoachBrawl.git
 git push -u origin main dev --tags
 ```
-Если спросит логин/токен — нужен твой Personal Access Token (Settings -> Developer settings -> classic, scope repo).
-
-## Откаты
-```bash
-git checkout main && git merge dev && git tag v0.2-xxx && git push origin main dev --tags
-git checkout main && git reset --hard v0.1-shuza-base  # откат
-```
+Нужен токен с scope `repo` для private.

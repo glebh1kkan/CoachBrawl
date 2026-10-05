@@ -23,7 +23,7 @@ namespace IndusBrawl.Laser.Server
 
         private static async Task Main(string[] args)
         {
-            Console.Title = "LostBrawl";
+            Console.Title = "CoachBrawl";
             Directory.SetCurrentDirectory(AppContext.BaseDirectory);
             RefreshFingerprint.Main();
 
@@ -50,7 +50,7 @@ namespace IndusBrawl.Laser.Server
 
             // 4. Вывод сообщения о запуске
             
-            Logger.Print("LostBrawl");
+            Logger.Print("CoachBrawl");
           
             // 5. Инициализация ExitHandler
             ExitHandler.Init();
@@ -81,13 +81,13 @@ catch (Exception ex)
             }
 
             // 8. Запуск Telegram-бота
-            // Telegram-бот (@lostbrawl_bot)
-            // LOST_NO_TELEGRAM=1 отключает бота (например, для тестового запуска)
+            // Telegram-бот (@coachbrawl_bot)
+            // COACH_NO_TELEGRAM=1 отключает бота (например, для тестового запуска)
             if (string.IsNullOrEmpty(Configuration.Instance.TelegramBotToken))
             {
                 Logger.Print("[TELEGRAM] telegram_bot_token не задан в config.json - бот выключен");
             }
-            else if (Environment.GetEnvironmentVariable("LOST_NO_TELEGRAM") != "1")
+            else if (Environment.GetEnvironmentVariable("COACH_NO_TELEGRAM") != "1")
             {
                 var telegramBot = new IndusBrawl.Laser.Server.Bot.TelegramBot();
                 await telegramBot.StartAsync();

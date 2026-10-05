@@ -376,7 +376,7 @@ public int CollectVipWeeklyGems()
         }
         public ClientAvatar()
         {
-            Name = "LostBrawl";
+            Name = "CoachBrawl";
             Gold = 0;
             Diamonds = 0;
 

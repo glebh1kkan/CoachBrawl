@@ -1,5 +1,5 @@
 // Web/AdminServer.cs
-// Админ-панель LostBrawl. Слушает только 127.0.0.1, наружу публикуется через nginx (HTTPS).
+// Админ-панель CoachBrawl. Слушает только 127.0.0.1, наружу публикуется через nginx (HTTPS).
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -787,7 +787,7 @@ namespace IndusBrawl.Laser.Server.Web
             }
             if (rewards.Count > MAX_MAIL_REWARDS) throw new ApiError(400, $"Не больше {MAX_MAIL_REWARDS} наград в одном письме");
             if (rewards.Count == 0 && text.Length == 0) throw new ApiError(400, "Письмо пустое: добавьте текст или награду");
-            if (text.Length == 0) text = "Подарок от LostBrawl!";
+            if (text.Length == 0) text = "Подарок от CoachBrawl!";
 
             string to = ((string)body["to"] ?? "").Trim();
             List<long> ids;

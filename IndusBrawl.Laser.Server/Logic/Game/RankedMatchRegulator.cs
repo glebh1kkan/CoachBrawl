@@ -152,7 +152,7 @@ public class RankedMatchRegulator
             int teamIndex = battle.GetTeamPlayersCount(0) <= battle.GetTeamPlayersCount(1) ? 0 : 1;
             int botBrawler = 16000000 + rankedBotBrawlers[rand.Next(0, rankedBotBrawlers.Length)];
 
-            BattlePlayer bot = BattlePlayer.CreateBotInfo($"LostBrawl_BOT_{botOrdinal}", currentPlayers, teamIndex, botBrawler);
+            BattlePlayer bot = BattlePlayer.CreateBotInfo($"CoachBrawl_BOT_{botOrdinal}", currentPlayers, teamIndex, botBrawler);
             bot.HeroPowerLevel = rand.Next(7, 12);
             battle.AddPlayer(bot, -1);
 

@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS lostbrawl CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE lostbrawl;
+CREATE DATABASE IF NOT EXISTS coachbrawl CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE coachbrawl;
 CREATE TABLE IF NOT EXISTS accounts (
   `Id` BIGINT NOT NULL PRIMARY KEY,
   `Trophies` INT NOT NULL DEFAULT 0,

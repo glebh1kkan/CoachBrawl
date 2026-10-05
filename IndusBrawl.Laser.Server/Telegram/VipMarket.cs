@@ -46,7 +46,7 @@ namespace IndusBrawl.Laser.Server.Bot
         };
 
         private const string PAYMENTS_PATH = "vip_payments.json";
-        private const string SUPPORT_CONTACT = "@LostBrawl";
+        private const string SUPPORT_CONTACT = "@CoachBrawl";
 
         private readonly TelegramClient _client;
         private readonly TelegramLinkManager _linkManager;
@@ -69,7 +69,7 @@ namespace IndusBrawl.Laser.Server.Bot
             if (!_linkManager.TryGetAccountId(userId, out string tag))
             {
                 await SendAsync(chatId,
-                    "⭐ <b>VIP-маркет LostBrawl</b>\n\n" +
+                    "⭐ <b>VIP-маркет CoachBrawl</b>\n\n" +
                     "Сначала привяжите игровой аккаунт: отправьте боту свой ТЭГ (например: #2PP).",
                     new { inline_keyboard = new object[] { new object[] { new { text = "← Назад", callback_data = "menu_main" } } } });
                 return;
@@ -83,7 +83,7 @@ namespace IndusBrawl.Laser.Server.Bot
             }
 
             string text =
-                "⭐ <b>VIP-маркет LostBrawl</b>\n" +
+                "⭐ <b>VIP-маркет CoachBrawl</b>\n" +
                 "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n" +
                 "<b>Что даёт VIP:</b>\n" +
                 "🏆 x2 кубки за бои\n" +
@@ -125,7 +125,7 @@ namespace IndusBrawl.Laser.Server.Bot
             var (ok, body) = await _client.CallAsync("sendInvoice", new
             {
                 chat_id = chatId,
-                title = $"VIP LostBrawl — {plan.Title}",
+                title = $"VIP CoachBrawl — {plan.Title}",
                 description = $"x2 кубки и {IndusBrawl.Laser.Logic.Avatar.ClientAvatar.VipWeeklyGems} гемов еженедельно на {plan.Days} дней. Аккаунт {tag}.",
                 payload = BuildPayload(plan, tag),
                 provider_token = "",
@@ -236,7 +236,7 @@ namespace IndusBrawl.Laser.Server.Bot
                 "🏆 x2 кубки за бои\n" +
                 $"💎 {IndusBrawl.Laser.Logic.Avatar.ClientAvatar.VipWeeklyGems} гемов каждую неделю" +
                 (gems > 0 ? $"\n\n💎 Начислено сейчас: +{gems} гемов" : "") +
-                "\n\nСпасибо за поддержку LostBrawl!",
+                "\n\nСпасибо за поддержку CoachBrawl!",
                 new { inline_keyboard = new object[] { new object[] { new { text = "← В меню", callback_data = "menu_main" } } } });
 
             foreach (long adminId in _adminIds)

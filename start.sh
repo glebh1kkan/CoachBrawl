@@ -1,7 +1,7 @@
 #!/bin/bash
-# Сервер LostBrawl. Использование:
+# Сервер CoachBrawl. Использование:
 #   ./start.sh          - запустить в текущем терминале (консоль команд сервера доступна)
-#   ./start.sh screen   - запустить в фоне, в screen-сессии "LostBrawl" (войти: screen -r LostBrawl)
+#   ./start.sh screen   - запустить в фоне, в screen-сессии "CoachBrawl" (войти: screen -r CoachBrawl)
 #   ./start.sh build    - собрать новую версию в run_stage (работающий сервер не затрагивается)
 #   ./start.sh restart  - остановить сервер, применить сборку из run_stage и запустить снова
 #                         (все игроки будут отключены на несколько секунд)
@@ -11,12 +11,12 @@ export DOTNET_ROOT="$HOME/.dotnet" PATH="$HOME/.dotnet:$PATH" DOTNET_CLI_TELEMET
 
 start_db() {
     # База данных (MySQL в Docker, слушает только 127.0.0.1:3306)
-    docker start lostbrawl-mysql >/dev/null
-    until docker exec lostbrawl-mysql mysqladmin ping -uroot -p"$(python3 -c "import json;print(json.load(open('run/config.json'))['database_password'])")" --silent 2>/dev/null; do sleep 1; done
+    docker start coachbrawl-mysql >/dev/null
+    until docker exec coachbrawl-mysql mysqladmin ping -uroot -p"$(python3 -c "import json;print(json.load(open('run/config.json'))['database_password'])")" --silent 2>/dev/null; do sleep 1; done
 }
 
 stop_server() {
-    screen -S LostBrawl -X quit >/dev/null 2>&1 || true
+    screen -S CoachBrawl -X quit >/dev/null 2>&1 || true
     for _ in $(seq 1 10); do pgrep -f "^dotnet run/IndusBrawl" >/dev/null || return 0; sleep 1; done
     pgrep -f "^dotnet run/IndusBrawl" | xargs -r kill -KILL
 }
@@ -36,13 +36,13 @@ restart)
         rm -rf run_stage
     fi
     start_db
-    mkdir -p logs; screen -L -Logfile logs/server.log -dmS LostBrawl dotnet run/IndusBrawl.Laser.Server.dll
-    echo "Сервер запущен в screen: screen -r LostBrawl"
+    mkdir -p logs; screen -L -Logfile logs/server.log -dmS CoachBrawl dotnet run/IndusBrawl.Laser.Server.dll
+    echo "Сервер запущен в screen: screen -r CoachBrawl"
     ;;
 screen)
     start_db
-    mkdir -p logs; screen -L -Logfile logs/server.log -dmS LostBrawl dotnet run/IndusBrawl.Laser.Server.dll
-    echo "Сервер запущен в screen: screen -r LostBrawl"
+    mkdir -p logs; screen -L -Logfile logs/server.log -dmS CoachBrawl dotnet run/IndusBrawl.Laser.Server.dll
+    echo "Сервер запущен в screen: screen -r CoachBrawl"
     ;;
 *)
     start_db

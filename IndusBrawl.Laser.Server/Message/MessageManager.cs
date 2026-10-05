@@ -446,10 +446,10 @@ private void SetSupportedCreator(SetSupportedCreatorMessage message)
         {
             HomeMode.GameListener.SendTCPMessage(new AuthenticationFailedMessage()
             {
-                Message = "BrawlTV недоступен!\nНо зато есть Telegram-канал:\n@lostbrawl"
+                Message = "BrawlTV недоступен!\nНо зато есть Telegram-канал:\n@coachbrawl"
             });
             LogicAddNotificationCommand logicAddNotificationCommand = new LogicAddNotificationCommand();
-            logicAddNotificationCommand.Notification = new FloaterTextNotification("BrawlTV недоступен!\nНо зато есть Telegram-канал:\n@lostbrawl");
+            logicAddNotificationCommand.Notification = new FloaterTextNotification("BrawlTV недоступен!\nНо зато есть Telegram-канал:\n@coachbrawl");
             AvailableServerCommandMessage availableServerCommandMessage = new AvailableServerCommandMessage();
             availableServerCommandMessage.Command = logicAddNotificationCommand;
             HomeMode.GameListener.SendMessage(availableServerCommandMessage);
@@ -1387,7 +1387,7 @@ private void SendNotification(string message)
 
                 AllianceStreamEntryMessage response = new AllianceStreamEntryMessage();
                 response.Entry = new AllianceStreamEntry();
-                response.Entry.AuthorName = "LostBrawl";
+                response.Entry.AuthorName = "CoachBrawl";
                 response.Entry.AuthorId = 1;
                 response.Entry.Id = alliance.Stream.EntryIdCounter + 667 + BotIdCounter++;
                 response.Entry.AuthorRole = AllianceRole.Member;
@@ -1402,7 +1402,7 @@ private void SendNotification(string message)
                         Connection.Send(response);
                         break;
                     case "help":
-                        response.Entry.Message = $"Доступные команды:\n/online - показать список игроков в сети.\n\nЧтобы привязать аккаунт, воспользуйтесь нашим ботом в Telegram:\n@lostbrawl_bot";
+                        response.Entry.Message = $"Доступные команды:\n/online - показать список игроков в сети.\n\nЧтобы привязать аккаунт, воспользуйтесь нашим ботом в Telegram:\n@coachbrawl_bot";
                         Connection.Send(response);
                         break;
                     default:
@@ -1996,7 +1996,7 @@ private void GetLeaderboardReceived(GetLeaderboardMessage message)
                 Connection.Send(new AuthenticationFailedMessage()
                 {
                     ErrorCode = 8,
-                    UpdateUrl = "https://t.me/lostbrawl"
+                    UpdateUrl = "https://t.me/coachbrawl"
                 });
                 return;
             }
@@ -2005,7 +2005,7 @@ private void GetLeaderboardReceived(GetLeaderboardMessage message)
                 Connection.Send(new AuthenticationFailedMessage()
                 {
                     ErrorCode = 8,
-                    UpdateUrl = "https://t.me/lostbrawl"
+                    UpdateUrl = "https://t.me/coachbrawl"
                 });
                 return;
             }
@@ -2274,14 +2274,14 @@ socket.TCPConnection = Connection;
                 Connection.Send(new AuthenticationFailedMessage()
                 {
                     ErrorCode = 8,
-                    UpdateUrl = "https://t.me/lostbrawl"
+                    UpdateUrl = "https://t.me/coachbrawl"
                 });
                 return;
             }
             //Connection.Send(new AuthenticationFailedMessage()
             //{
             //    ErrorCode = 8,
-            //    UpdateUrl = "https://t.me/lostbrawl"
+            //    UpdateUrl = "https://t.me/coachbrawl"
             //});
             //return;
             Connection.Messaging.Seed = message.ClientSeed;
