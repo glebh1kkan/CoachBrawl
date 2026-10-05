@@ -33,6 +33,10 @@ public static class Program
 
     static int Step = 0; // 0 hello sent, 1 authed, 2 queued, 3 draft, 4 battle
     static int PickBrawler = 11;
+    static string Mode = "ranked";
+    static long LoginId = 0;
+    static string LoginToken = "";
+    static long GuestId = 0;
     static long MatchId;
     static DateTime StartAt = DateTime.UtcNow;
     static DateTime LastRecv = DateTime.UtcNow;
@@ -41,7 +45,14 @@ public static class Program
     {
         if (args.Length > 0) Host = args[0];
         if (args.Length > 1) Port = int.Parse(args[1]);
-        if (args.Length > 2) PickBrawler = int.Parse(args[2]);
+        if (args.Length > 2)
+            {
+                if (args[2] == "team1" || args[2] == "ranked" || args[2] == "guest" || args[2] == "host1") Mode = args[2];
+                else PickBrawler = int.Parse(args[2]);
+            }
+            if (args.Length > 3) PickBrawler = int.Parse(args[3]);
+            if (Mode == "guest") { LoginId = long.Parse(args[3]); LoginToken = args[4]; }
+            if (Mode == "host1") GuestId = long.Parse(args[3]);
         try
         {
             Run();
@@ -251,8 +262,8 @@ public static class Program
     {
         // зеркало AuthenticationMessage.Decode
         var s = new ByteStream(512);
-        s.WriteLong(0); // новый акк
-        s.WriteString("");
+        s.WriteLong(LoginId);
+        s.WriteString(LoginToken);
         s.WriteInt(53); s.WriteInt(0); s.WriteInt(7);
         s.WriteString("bot-sha");
         s.WriteString("bot-device");
@@ -293,8 +304,58 @@ public static class Program
                 if (Step == 0)
                 {
                     Step = 1;
-                    Log("дома получены, встаю в ранкед соло (слот 14)");
-                    SendMatchmake(14);
+                    if (Mode == "team1")
+                    {
+                        Log("дома получены, создаю дружескую комнату (тип 1)");
+                        SendTeamCreate(1);
+                    }
+                    else if (Mode == "host1")
+                    {
+                        Log("дома получены, создаю комнату для друга");
+                        SendTeamCreate(1);
+                    }
+                    else if (Mode == "guest")
+                    {
+                        Log("дома получены, жду инвайт...");
+                    }
+                    else
+                    {
+                        Log("дома получены, встаю в ранкед соло (слот 14)");
+                        SendMatchmake(14);
+                    }
+                }
+                break;
+            case 24124: // TeamMessage
+                if (Mode == "team1" && Step == 1)
+                {
+                    Step = 2;
+                    Log("комната создана, жму готов");
+                    SendTeamReady(true);
+                }
+                else if (Mode == "host1" && Step == 1)
+                {
+                    Step = 2;
+                    Log($"комната создана, зову друга {GuestId}");
+                    SendInvite(GuestId);
+                    Thread.Sleep(12000);
+                    Log("жму готов");
+                    SendTeamReady(true);
+                }
+                break;
+            case 24589: // TeamInvitationMessage: VInt + Long teamId
+                if (Mode == "guest" && Step == 1)
+                {
+                    try
+                    {
+                        var bs = new ByteStream(payload, payload.Length);
+                        bs.ReadVInt();
+                        long teamId = bs.ReadLong();
+                        Step = 2;
+                        Log($"инвайт в команду {teamId}, принимаю + готов");
+                        SendInviteResponse(teamId);
+                        SendTeamReady(true);
+                    }
+                    catch (Exception ex) { Log($"invite parse fail: {ex.Message}"); }
                 }
                 break;
             case 22150: Log("RANKED STARTED"); Step = 3; break;
@@ -316,6 +377,37 @@ public static class Program
                 Environment.Exit(0);
                 break;
         }
+    }
+
+    static void SendTeamCreate(int teamType)
+    {
+        var s = new ByteStream(32);
+        s.WriteLong(0); s.WriteVInt(teamType); s.WriteVInt(1); s.WriteVInt(0);
+        SendRaw(12541, Fin(s), 1);
+    }
+
+    static void SendInvite(long guestId)
+    {
+        var s = new ByteStream(32);
+        ByteStreamHelper.EncodeLogicLong(s, guestId);
+        s.WriteVInt(0);
+        SendRaw(14365, Fin(s), 1);
+    }
+
+    static void SendInviteResponse(long teamId)
+    {
+        var s = new ByteStream(32);
+        s.WriteVInt(1);
+        s.WriteLong(teamId);
+        s.WriteBoolean(false);
+        SendRaw(14479, Fin(s), 1);
+    }
+
+    static void SendTeamReady(bool ready)
+    {
+        var s = new ByteStream(8);
+        s.WriteBoolean(ready);
+        SendRaw(14355, Fin(s), 1);
     }
 
     static void SendMatchmake(int slot)
