@@ -22,6 +22,31 @@
             RefreshTimer = new Timer(new TimerCallback(RefreshTimerElapsed), null, 0, REFRESH_MINUTES * 60 * 1000);
         }
 
+        // для админки: перечитать gameplay.json и пересоздать ивенты на лету
+        public static void Reload()
+        {
+            LoadSettings();
+            GenerateEvents();
+        }
+
+        // для админки: текущий конфиг слотов
+        public static List<object> GetSlots()
+        {
+            var list = new List<object>();
+            if (ConfigSlots == null) return list;
+            foreach (var c in ConfigSlots)
+            {
+                list.Add(new
+                {
+                    slot = c.Slot,
+                    modes = c.AllowedModes ?? new string[0],
+                    location = c.location,
+                    modifi = c.modifi != null ? c.modifi.ToArray() : new int[0]
+                });
+            }
+            return list;
+        }
+
         private static void GenerateEvents()
         {
             if (Slots == null)

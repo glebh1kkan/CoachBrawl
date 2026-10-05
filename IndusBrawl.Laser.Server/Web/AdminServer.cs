@@ -28,8 +28,10 @@ using IndusBrawl.Laser.Logic.Message.Home;
 using IndusBrawl.Laser.Logic.Command.Home;
 using IndusBrawl.Laser.Logic.Util;
 using IndusBrawl.Laser.Server.Database;
+using IndusBrawl.Laser.Server.Database.Cache;
 using IndusBrawl.Laser.Server.Database.Models;
 using IndusBrawl.Laser.Server.Handler;
+using IndusBrawl.Laser.Server.Logic.Game;
 using IndusBrawl.Laser.Server.Networking.Session;
 using IndusBrawl.Laser.Server.Settings;
 
@@ -157,6 +159,11 @@ namespace IndusBrawl.Laser.Server.Web
                         ("POST", "/mail") => MailSend(body),
                         ("GET", "/payments") => Payments(),
                         ("GET", "/gem-payments") => GemPayments(),
+                        ("GET", "/events") => GetEvents(),
+                        ("POST", "/events") => SaveEvents(body),
+                        ("GET", "/ranked") => RankedMatches(),
+                        ("GET", "/logs") => ReadLogs(query["lines"].ToString(), query["q"].ToString()),
+                        ("POST", "/restart") => Restart(),
                         ("POST", "/maintenance") => Maintenance(body),
                         _ => throw new ApiError(404, "Не найдено")
                     };
@@ -351,6 +358,7 @@ namespace IndusBrawl.Laser.Server.Web
                 skins = account.Home.UnlockedSkins?.Count ?? 0,
                 vip = avatar.HasVIP(),
                 vipExpire = avatar.HasVIP() ? avatar.VIPExpire : (DateTime?)null,
+                rank = avatar.RankedRank,
                 banned = avatar.Banned,
                 online = Sessions.IsSessionActive(account.AccountId),
                 lastOnline = avatar.LastOnline
@@ -388,6 +396,7 @@ namespace IndusBrawl.Laser.Server.Web
                 gemPurchases = gemPayments.Count,
                 gemStars = gemPayments.Sum(p => (int?)p["Stars"] ?? 0),
                 gemsSold = gemPayments.Sum(p => (int?)p["Gems"] ?? 0),
+                rankedMatches = RankedMatchRegulator.thestealdev?.Count ?? 0,
                 offers = CustomOffers.GetAll().Count
             };
         }
@@ -396,6 +405,137 @@ namespace IndusBrawl.Laser.Server.Web
         {
             Sessions.Maintenance = (bool?)body["enabled"] ?? false;
             return new { maintenance = Sessions.Maintenance };
+        }
+
+        // ---------- События ----------
+
+        private static readonly HashSet<string> ValidModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "GemGrab", "Showdown", "Heist", "Bounty", "BrawlBall", "DuoShowdown", "BigGame",
+            "RoboRumble", "BossFight", "Siege", "Takedown", "LoneStar", "CTF", "KingOfHill",
+            "ProtectKing", "Knockout", "HoldTheBall", "BasketBrawl", "VolleyBrawl", "TagTeam",
+            "Deathmatch", "Payload", "Invasion", "DeathmatchFFA", "Tutorial", "Training"
+        };
+
+        private object GetEvents()
+        {
+            return Events.GetSlots();
+        }
+
+        private object SaveEvents(JObject body)
+        {
+            var slots = body["slots"] as JArray;
+            if (slots == null || slots.Count == 0 || slots.Count > 30)
+                throw new ApiError(400, "Слоты: от 1 до 30");
+
+            var seen = new HashSet<int>();
+            foreach (JObject s in slots)
+            {
+                int slot = (int?)s["slot"] ?? 0;
+                if (slot <= 0 || !seen.Add(slot))
+                    throw new ApiError(400, $"Слот {slot}: номер должен быть уникальным и > 0");
+
+                var modes = ((JArray)s["modes"] ?? new JArray()).Select(m => m.ToString().Trim()).Where(m => m != "").ToList();
+                if (modes.Count == 0 || modes.Count > 5)
+                    throw new ApiError(400, $"Слот {slot}: от 1 до 5 режимов");
+                foreach (string m in modes)
+                    if (!ValidModes.Contains(m))
+                        throw new ApiError(400, $"Слот {slot}: неизвестный режим {m}");
+
+                int location = (int?)s["location"] ?? 0;
+                if (location < 0 || location > 500)
+                    throw new ApiError(400, $"Слот {slot}: location 0..500");
+
+                var modifi = ((JArray)s["modifi"] ?? new JArray()).Select(m => (int)m).ToList();
+                if (modifi.Any(m => m < 0 || m > 100))
+                    throw new ApiError(400, $"Слот {slot}: модификаторы 0..100");
+            }
+
+            File.WriteAllText("gameplay.json", JsonConvert.SerializeObject(new { slots }, Formatting.Indented));
+            try { Events.Reload(); }
+            catch (Exception ex) { throw new ApiError(500, "Сохранено, но ивенты не пересоздались: " + ex.Message); }
+            return new { saved = slots.Count };
+        }
+
+        // ---------- Ранкед ----------
+
+        private object RankedMatches()
+        {
+            var list = new List<object>();
+            var all = RankedMatchRegulator.thestealdev;
+            if (all == null) return list;
+            foreach (var m in all.Values.ToArray().Take(50))
+            {
+                try
+                {
+                    list.Add(new
+                    {
+                        id = m.r_i_thestealdev,
+                        players = m.plist_thestealdev?.Count ?? 0,
+                        score0 = m.TTW_thestealdev,
+                        score1 = m.TRW_thestealdev,
+                        round = m.rdns_thestealdev + 1
+                    });
+                }
+                catch { }
+            }
+            return list;
+        }
+
+        // ---------- Логи и рестарт ----------
+
+        private object ReadLogs(string linesRaw, string query)
+        {
+            int lines = 200;
+            if (int.TryParse(linesRaw, out int n)) lines = Math.Clamp(n, 10, 1000);
+            query = (query ?? "").Trim();
+
+            const string path = "logs/server.log";
+            if (!File.Exists(path)) return new { lines = new string[0] };
+
+            var result = new List<string>();
+            try
+            {
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                long start = Math.Max(0, stream.Length - 512 * 1024);
+                stream.Seek(start, SeekOrigin.Begin);
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+                string tail = reader.ReadToEnd();
+                var all = tail.Split('\n');
+                int skip = start > 0 ? 1 : 0; // первая строка может быть обрезана
+                for (int i = skip; i < all.Length; i++)
+                {
+                    string line = all[i].TrimEnd('\r');
+                    if (line == "") continue;
+                    if (query != "" && !line.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+                    result.Add(line);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new ApiError(500, "Не смог прочитать лог: " + ex.Message);
+            }
+
+            if (result.Count > lines) result = result.Skip(result.Count - lines).ToList();
+            return new { lines = result };
+        }
+
+        private object Restart()
+        {
+            Console.WriteLine("[ADMIN] Рестарт по кнопке из админки");
+            Task.Run(async () =>
+            {
+                await Task.Delay(800);
+                try
+                {
+                    Sessions.StartShutdown();
+                    AccountCache.SaveAll();
+                    AllianceCache.SaveAll();
+                }
+                catch { }
+                Environment.Exit(42); // loop.sh перезапустит сервер
+            });
+            return new { restarting = true };
         }
 
         private static List<JObject> ReadPayments()
@@ -497,6 +637,8 @@ namespace IndusBrawl.Laser.Server.Web
             avatar.Gold = Apply(avatar.Gold, "gold");
             avatar.PowerPoints = Apply(avatar.PowerPoints, "powerPoints");
             avatar.Blings = Apply(avatar.Blings, "blings");
+            if (body["rank"] != null && body["rank"].ToString() != "")
+                avatar.RankedRank = Int(body, "rank", 0, 19);
 
             Commit(account);
             return PlayerInfo(account);

@@ -102,6 +102,9 @@
       <button data-tab="mail">Рассылка</button>
       <button data-tab="payments">Покупки VIP</button>
       <button data-tab="gems">Покупки гемов</button>
+      <button data-tab="events">События</button>
+      <button data-tab="ranked">Ранкед</button>
+      <button data-tab="logs">Логи</button>
     </nav>
     <div class="spacer"></div>
     <button id="logout">Выйти</button>
@@ -150,6 +153,7 @@
             <div><label for="rGold">Монеты</label><input id="rGold" type="number"></div>
             <div><label for="rPP">Очки силы</label><input id="rPP" type="number"></div>
             <div><label for="rBl">Блинги</label><input id="rBl" type="number"></div>
+            <div><label for="rRank">Ранг 0–19 (пусто — не менять)</label><input id="rRank" type="number" min="0" max="19"></div>
             <div><label for="rMode">Действие</label>
               <select id="rMode"><option value="add">Добавить</option><option value="set">Установить ровно</option></select></div>
           </div>
@@ -288,6 +292,57 @@
         </div>
       </div>
     </section>
+
+    <!-- События -->
+    <section data-view="events" class="hidden">
+      <div class="card">
+        <h2>Слоты событий</h2>
+        <p class="note">Режимы через запятую (до 5), location — номер карты (0 — случайная), модификаторы — числа через запятую. Сохранение сразу пересоздаёт ивенты.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Слот</th><th>Режимы</th><th>Карта</th><th>Модификаторы</th><th></th></tr></thead>
+            <tbody id="evRows"></tbody>
+          </table>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="evSave">Сохранить все слоты</button>
+          <button id="evAdd">+ слот</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ранкед -->
+    <section data-view="ranked" class="hidden">
+      <div class="card">
+        <h2>Активные ранкед-матчи</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>ID</th><th>Игроков</th><th>Счёт 0</th><th>Счёт 1</th><th>Раунд</th></tr></thead>
+            <tbody id="rkRows"></tbody>
+          </table>
+        </div>
+        <p class="note">Ранг игрока смотрится и меняется в карточке игрока (вкладка «Игроки»). Победа +1, поражение −1.</p>
+      </div>
+    </section>
+
+    <!-- Логи -->
+    <section data-view="logs" class="hidden">
+      <div class="card">
+        <h2>Лог сервера</h2>
+        <form id="logForm" class="row">
+          <div><label for="logQ">Фильтр</label><input id="logQ" placeholder="например ranked"></div>
+          <div><label for="logN">Строк</label>
+            <select id="logN"><option>100</option><option selected>200</option><option>500</option><option>1000</option></select></div>
+          <div style="align-self:end"><button type="submit">Обновить</button></div>
+        </form>
+        <pre id="logOut" style="max-height:60vh;overflow:auto;white-space:pre-wrap"></pre>
+      </div>
+      <div class="card">
+        <h2>Перезапуск</h2>
+        <p class="note">Сохраняет базы и перезапускает сервер (игроки отключатся на несколько секунд).</p>
+        <div class="row"><button id="restartBtn" class="danger">Перезапустить сервер</button></div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -365,7 +420,7 @@ $('loginForm').addEventListener('submit', async (event) => {
 $('logout').addEventListener('click', async () => { await run(null, () => api('/logout', {})); showLogin(); });
 
 // ---------- Вкладки ----------
-const loaders = { stats: loadStats, players: () => searchPlayers(), offers: loadOffers, mail: loadMail, payments: loadPayments, gems: loadGemPayments };
+const loaders = { stats: loadStats, players: () => searchPlayers(), offers: loadOffers, mail: loadMail, payments: loadPayments, gems: loadGemPayments, events: loadEvents, ranked: loadRanked, logs: loadLogs };
 function openTab(name) {
   document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('[data-view]').forEach((v) => v.classList.toggle('hidden', v.dataset.view !== name));
@@ -382,6 +437,7 @@ async function loadStats() {
     [s.online, 'игроков онлайн'], [fmtNum(s.accounts), 'аккаунтов всего'],
     [s.offers, 'акций в магазине'], [s.vipPurchases, 'покупок VIP'], [fmtNum(s.vipStars), 'звёзд получено'],
     [s.gemPurchases, 'покупок гемов'], [fmtNum(s.gemsSold), 'гемов продано'],
+    [s.rankedMatches, 'ранкед-матчей идёт'],
     [Math.floor(s.uptimeMinutes / 60) + ' ч ' + (s.uptimeMinutes % 60) + ' мин', 'сервер работает'],
   ];
   $('statGrid').replaceChildren(...items.map(([value, label]) => el('div', { className: 'stat' }, el('b', { textContent: value }), el('span', { textContent: label }))));
@@ -426,6 +482,7 @@ function showPlayer(p) {
     [fmtNum(p.trophies), 'кубков'], [fmtNum(p.gems), 'гемов'], [fmtNum(p.gold), 'монет'],
     [fmtNum(p.powerPoints), 'очков силы'], [fmtNum(p.blings), 'блингов'], [p.brawlers, 'бойцов'], [p.skins, 'скинов'],
     [p.vip ? fmtDate(p.vipExpire).slice(0, 10) : 'нет', 'VIP до'], [fmtDate(p.lastOnline), 'был в игре'],
+    [rankName(p.rank), 'ранг'], [fmtNum(p.rank), 'ранг (число)'],
   ];
   $('pStats').replaceChildren(...items.map(([value, label]) => el('div', { className: 'stat' }, el('b', { textContent: value }), el('span', { textContent: label }))));
   $('banBtn').textContent = p.banned ? 'Разбанить' : 'Забанить';
@@ -438,7 +495,7 @@ const playerAction = (button, path, body, okText) => run(button, async () => sho
 
 $('resForm').addEventListener('submit', async (event) => {
   event.preventDefault();
-  const body = { mode: $('rMode').value, gems: $('rGems').value, gold: $('rGold').value, powerPoints: $('rPP').value, blings: $('rBl').value };
+  const body = { mode: $('rMode').value, gems: $('rGems').value, gold: $('rGold').value, powerPoints: $('rPP').value, blings: $('rBl').value, rank: $('rRank').value };
   await playerAction(event.target.querySelector('button'), '/player/resources', body, 'Ресурсы обновлены');
   event.target.reset();
 });
@@ -653,6 +710,74 @@ $('mailForm').addEventListener('submit', async (event) => {
     $('mText').value = '';
     $('mItems').replaceChildren();
     await loadMail();
+  });
+});
+
+const RANK_NAMES = ['без ранга', 'бронза 1', 'бронза 2', 'бронза 3', 'серебро 1', 'серебро 2', 'серебро 3', 'золото 1', 'золото 2', 'золото 3', 'алмаз 1', 'алмаз 2', 'алмаз 3', 'мифик 1', 'мифик 2', 'мифик 3', 'легенда 1', 'легенда 2', 'легенда 3', 'мастер'];
+const rankName = (r) => RANK_NAMES[r] || ('ранг ' + r);
+
+// ---------- События ----------
+async function loadEvents() {
+  const slots = await api('/events');
+  $('evRows').replaceChildren(...slots.map((s) => el('tr', { dataset: { slot: s.slot } },
+    el('td', {}, el('input', { value: s.slot, type: 'number', min: 1, style: 'width:70px', className: 'ev-slot' })),
+    el('td', {}, el('input', { value: (s.modes || []).join(','), style: 'min-width:220px', className: 'ev-modes', placeholder: 'GemGrab,Showdown' })),
+    el('td', {}, el('input', { value: s.location, type: 'number', min: 0, style: 'width:80px', className: 'ev-loc' })),
+    el('td', {}, el('input', { value: (s.modifi || []).join(','), style: 'width:110px', className: 'ev-mod', placeholder: '1' })),
+    el('td', {}, el('button', { textContent: '✕', onclick: (e) => e.target.closest('tr').remove() })))));
+  if (!slots.length) toast('Слоты пустые — добавь хотя бы один');
+}
+function readEvents() {
+  return [...$('evRows').children].map((tr) => ({
+    slot: +tr.querySelector('.ev-slot').value,
+    modes: tr.querySelector('.ev-modes').value.split(',').map((m) => m.trim()).filter(Boolean),
+    location: +tr.querySelector('.ev-loc').value || 0,
+    modifi: tr.querySelector('.ev-mod').value.split(',').map((m) => m.trim()).filter(Boolean).map(Number).filter((n) => !isNaN(n)),
+  }));
+}
+$('evAdd').addEventListener('click', async () => {
+  const slots = await api('/events');
+  const max = slots.reduce((m, s) => Math.max(m, s.slot), 0);
+  $('evRows').append(el('tr', {},
+    el('td', {}, el('input', { value: max + 1, type: 'number', min: 1, style: 'width:70px', className: 'ev-slot' })),
+    el('td', {}, el('input', { value: 'GemGrab', style: 'min-width:220px', className: 'ev-modes' })),
+    el('td', {}, el('input', { value: 0, type: 'number', min: 0, style: 'width:80px', className: 'ev-loc' })),
+    el('td', {}, el('input', { value: '', style: 'width:110px', className: 'ev-mod' })),
+    el('td', {}, el('button', { textContent: '✕', onclick: (e) => e.target.closest('tr').remove() }))));
+});
+$('evSave').addEventListener('click', async (event) => {
+  await run(event.target, async () => {
+    const result = await api('/events', { slots: readEvents() });
+    toast('Сохранено слотов: ' + result.saved + '. Ивенты пересозданы.');
+    await loadEvents();
+  });
+});
+
+// ---------- Ранкед ----------
+async function loadRanked() {
+  const list = await api('/ranked');
+  const rows = list.map((m) => el('tr', {},
+    el('td', { textContent: m.id }), el('td', { textContent: m.players }),
+    el('td', { textContent: m.score0 }), el('td', { textContent: m.score1 }),
+    el('td', { textContent: m.round })));
+  if (!rows.length) rows.push(el('tr', {}, el('td', { colSpan: 5, className: 'muted', textContent: 'Нет активных матчей' })));
+  $('rkRows').replaceChildren(...rows);
+}
+
+// ---------- Логи ----------
+async function loadLogs() {
+  const params = new URLSearchParams({ lines: $('logN').value, q: $('logQ').value.trim() });
+  const result = await fetch('/api/logs?' + params, { credentials: 'same-origin' }).then((r) => r.json());
+  if (result.error) { toast(result.error); return; }
+  $('logOut').textContent = result.lines.join('\n') || '(пусто)';
+  $('logOut').scrollTop = $('logOut').scrollHeight;
+}
+$('logForm').addEventListener('submit', async (event) => { event.preventDefault(); await loadLogs(); });
+$('restartBtn').addEventListener('click', async (event) => {
+  if (!confirm('Перезапустить сервер? Игроки отключатся на несколько секунд.')) return;
+  await run(event.target, async () => {
+    await api('/restart');
+    toast('Сервер перезапускается... обнови страницу через 10 секунд.');
   });
 });
 
