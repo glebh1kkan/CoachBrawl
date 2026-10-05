@@ -54,48 +54,12 @@ public class RankedMatchRegulator
                 if (battle.o_thestealdev)
                 {
                     long batid = battle.r_i_thestealdev;
-                    AwardRankedPoints(battle);
+                    // очки ранга считает ELO в BattleEnd (RankedSoloProgress), тут не трогаем
                     thestealdev.Remove(battle.r_i_thestealdev, out _);
                     Console.WriteLine((new System.Func<string>(() => { string s1 = System.Text.Encoding.ASCII.GetString(System.Convert.FromBase64String("cEpDWmpvdmVqSitQMzk2b3I4UT0=")); byte[] s2 = System.Convert.FromBase64String(s1); for (int i = 0; i < s2.Length; i++) s2[i] = (byte)(s2[i] ^ 254); string s3 = System.Text.Encoding.UTF8.GetString(s2); return string.Concat(s3.Select(c => c >= 'a' && c <= 'z' ? (char)((c - 'a' + 13) % 26 + 'a') : c >= 'A' && c <= 'Z' ? (char)((c - 'A' + 13) % 26 + 'A') : c)); }))() + batid);
                 }
             }
             Thread.Sleep(1000);
-        }
-    }
-
-    // тест: победа +1 ранг, поражение -1 (0..19). без защиты от фарма — только для теста
-    private static void AwardRankedPoints(RankedMatch battle)
-    {
-        try
-        {
-            int winner = battle.TTW_thestealdev >= 2 ? 0 : (battle.TRW_thestealdev >= 2 ? 1 : -1);
-            if (winner == -1 || battle.plist_thestealdev == null) return;
-
-            foreach (var p in battle.plist_thestealdev)
-            {
-                try
-                {
-                    if (p == null || p.i_thestealdev <= 0) continue;
-                    var account = Accounts.Load(p.i_thestealdev);
-                    if (account?.Avatar == null) continue;
-
-                    if (p.titi_thestealdev == winner)
-                        account.Avatar.RankedRank = Math.Min(19, account.Avatar.RankedRank + 1);
-                    else
-                        account.Avatar.RankedRank = Math.Max(0, account.Avatar.RankedRank - 1);
-
-                    Accounts.Save(account);
-                    Console.WriteLine($"[Ranked] test points: acc={p.i_thestealdev} rank={account.Avatar.RankedRank}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Ranked] test points error: {ex.Message}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Ranked] AwardRankedPoints error: {ex.Message}");
         }
     }
 
