@@ -230,7 +230,7 @@ namespace IndusBrawl.Laser.Logic.Ranked
                 BanDone = true;
             }
 
-            if (ily && currtur_thestealdev != null && thesteeeeel + (20 * 16) < GetTicks())
+            if (ily && currtur_thestealdev != null && thesteeeeel + (20 * 25) < GetTicks())
             {
                 // тест: автопик вместо смерти матча — берём первого открытого бойца
                 AutoPickCurrentPlayer();
@@ -422,18 +422,18 @@ namespace IndusBrawl.Laser.Logic.Ranked
             
             foreach (var p in plist_thestealdev)
             {
-                p.ca_thestealdev = 0;
+                // пики (ca) между раундами НЕ сбрасываем — иначе в бой идёт герой 0
                 p.bs_stealdev = 0;
                 p.ps_thestlealdeveEVEVE = 0;
                 p.pie_thestealdev = false;
             }
-            
+
             rdns_thestealdev++;
             Console.WriteLine($"[RankedMatch] Starting round {rdns_thestealdev + 1} of match {r_i_thestealdev}");
-            
+
             TG_TheSteallllDev = 0;
             CurrentPickIndex = 0;
-            
+
             StartBattle();
         }
 
@@ -489,12 +489,12 @@ namespace IndusBrawl.Laser.Logic.Ranked
             
             foreach (var p in plist_thestealdev)
             {
-                p.ca_thestealdev = 0;
+                // пики (ca) между раундами НЕ сбрасываем — иначе в бой идёт герой 0
                 p.bs_stealdev = 0;
                 p.ps_thestlealdeveEVEVE = 0;
                 p.pie_thestealdev = false;
             }
-            
+
             rdns_thestealdev++;
             Console.WriteLine($"[RankedMatch] Restarting round {rdns_thestealdev + 1}");
             
@@ -505,6 +505,7 @@ namespace IndusBrawl.Laser.Logic.Ranked
                 (int)r_i_thestealdev, 
                 rdns_thestealdev
             );
+            d_thestealdev = true; // бой идёт — таймеры драфта не должны срабатывать
             return 0;
         }
 

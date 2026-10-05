@@ -312,23 +312,26 @@ namespace IndusBrawl.Laser.Server.Message
         private void RankedMatchPickHeroReceived(RankedMatchPickHeroMessage message)
 {
     RankedMatch match = RankedMatchRegulator.Get(HomeMode.Avatar.RanledId);
-    if (match == null) return;
+    if (match == null) { Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: no match"); return; }
 
     mp_thestealdev player = match.GetPlayer(HomeMode.Avatar.AccountId);
-    if (player == null) return;
-    
+    if (player == null) { Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: not in plist"); return; }
+
     int g = GlobalId.CreateGlobalId(16, message.BrawlerId);
     var characterData = DataTables.Get(16).GetDataByGlobalId<CharacterData>(g);
     if (characterData == null) g = GlobalId.CreateGlobalId(16, 0);
-    
-    if (characterData != null && (characterData.LockedForChronos || characterData.Disabled || !characterData.IsHero())) 
+
+    if (characterData != null && (characterData.LockedForChronos || characterData.Disabled || !characterData.IsHero()))
         g = GlobalId.CreateGlobalId(16, 0);
-        
+
     if (!HomeMode.Avatar.HasHero(g))
     {
+        Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: REJECT brawlerId={message.BrawlerId} g={g} pickType={message.PickType} (no hero)");
         Connection.Send(new OutOfSyncMessage());
         return;
     }
+
+    Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: pick brawlerId={message.BrawlerId} g={g} pickType={message.PickType}");
     
     player.ca_thestealdev = g;
     
