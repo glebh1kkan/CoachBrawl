@@ -18,8 +18,11 @@ OLD_IP = b"148.113.240.165"
 NEW_IP = b"150.241.70.48"
 
 PATCH_FILES = {
-    "lib/arm64-v8a/libindusbrawl.script.so": [(OLD_IP, NEW_IP)],
+    "lib/arm64-v8a/libindusbrawl.script.so": [(OLD_IP, NEW_IP), (b"@ShuzaBrawl", b"@CoachBrawl")],
     "lib/armeabi-v7a/libindusbrawl.c.so": [(OLD_IP, NEW_IP)],
+    "lib/armeabi-v7a/libindusbrawl.s.so": [(b"@shuzabrawl", b"@coachbrawl")],
+    # манифест: только замены равной длины (структура pool не меняется)
+    "AndroidManifest.xml": [(b"com.sh.shuzybrawl", b"com.coachbrawlapp"), (b"ShuzaBrawl", b"CoachBrawl")],
 }
 
 d = open(SRC, "rb").read()
