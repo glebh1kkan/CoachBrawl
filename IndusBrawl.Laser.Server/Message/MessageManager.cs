@@ -332,7 +332,36 @@ namespace IndusBrawl.Laser.Server.Message
     }
 
     Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: pick brawlerId={message.BrawlerId} g={g} pickType={message.PickType}");
-    
+
+    // выбор гаджета/пассивки/гиперзаряда в драфте: героя не трогаем, ставим аксессуар
+    if (message.PickType != 0 && message.PickType != 1)
+    {
+        var accCard = DataTables.Get(23).GetData<CardData>(message.BrawlerId);
+        if (accCard == null)
+        {
+            Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: accessory {message.BrawlerId} not found, ignore");
+            return;
+        }
+        var pickedHero = HomeMode.Avatar.GetHero(player.ca_thestealdev);
+        if (pickedHero == null)
+        {
+            Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: no picked hero yet, ignore accessory");
+            return;
+        }
+        switch (accCard.MetaType)
+        {
+            case 4: pickedHero.SelectedStarPowerId = message.BrawlerId; break;
+            case 5: pickedHero.SelectedGadgetId = message.BrawlerId; break;
+            case 6: pickedHero.SelectedOverChargeId = message.BrawlerId; break;
+            default:
+                Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: MetaType {accCard.MetaType} not accessory, ignore");
+                return;
+        }
+        Console.WriteLine($"[RankedPick] acc={HomeMode.Avatar.AccountId}: accessory set meta={accCard.MetaType} id={message.BrawlerId}");
+        match.SendHeroDataUpdated(player);
+        return;
+    }
+
     player.ca_thestealdev = g;
     
     if (message.PickType == 1)
