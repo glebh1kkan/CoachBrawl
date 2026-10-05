@@ -39,6 +39,11 @@ namespace IndusBrawl.Laser.Server.Utils
             try
             {
                 if (!File.Exists(TEST_PATH)) return false;
+                // строка ALL в файле = проверка для всех (смена для всего сервера)
+                foreach (string line in File.ReadAllLines(TEST_PATH))
+                {
+                    if (line.Trim().ToUpper() == "ALL") return true;
+                }
                 if (File.GetLastWriteTimeUtc(TEST_PATH) > _loadedAt)
                 {
                     _ids.Clear();
