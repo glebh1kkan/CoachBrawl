@@ -63,3 +63,4 @@ frida-мод `libindusbrawl.so` + скрипт `libindusbrawl.script.so` (arm64)
 
 итог: пакет `com.coachbrawl.brawl`, версия `53.007`, редирект не нужен —
 клиент сам идёт на `150.241.70.48:9339`. просто скачать и играть.
+важно при пересборке zip: нативные `.so` паковать БЕЗ сжатия (`zip -n .so`), иначе android 7+ не ставит (native libs must be stored).
