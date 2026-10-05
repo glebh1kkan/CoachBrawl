@@ -101,6 +101,7 @@
       <button data-tab="offers">Акции магазина</button>
       <button data-tab="mail">Рассылка</button>
       <button data-tab="payments">Покупки VIP</button>
+      <button data-tab="gems">Покупки гемов</button>
     </nav>
     <div class="spacer"></div>
     <button id="logout">Выйти</button>
@@ -274,6 +275,19 @@
         </div>
       </div>
     </section>
+
+    <!-- Покупки гемов -->
+    <section data-view="gems" class="hidden">
+      <div class="card">
+        <h2>Покупки гемов за звёзды Telegram</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Дата</th><th>Аккаунт</th><th>Гемы</th><th>Звёзды</th><th>Telegram ID</th></tr></thead>
+            <tbody id="gemRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -351,7 +365,7 @@ $('loginForm').addEventListener('submit', async (event) => {
 $('logout').addEventListener('click', async () => { await run(null, () => api('/logout', {})); showLogin(); });
 
 // ---------- Вкладки ----------
-const loaders = { stats: loadStats, players: () => searchPlayers(), offers: loadOffers, mail: loadMail, payments: loadPayments };
+const loaders = { stats: loadStats, players: () => searchPlayers(), offers: loadOffers, mail: loadMail, payments: loadPayments, gems: loadGemPayments };
 function openTab(name) {
   document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('[data-view]').forEach((v) => v.classList.toggle('hidden', v.dataset.view !== name));
@@ -367,6 +381,7 @@ async function loadStats() {
   const items = [
     [s.online, 'игроков онлайн'], [fmtNum(s.accounts), 'аккаунтов всего'],
     [s.offers, 'акций в магазине'], [s.vipPurchases, 'покупок VIP'], [fmtNum(s.vipStars), 'звёзд получено'],
+    [s.gemPurchases, 'покупок гемов'], [fmtNum(s.gemsSold), 'гемов продано'],
     [Math.floor(s.uptimeMinutes / 60) + ' ч ' + (s.uptimeMinutes % 60) + ' мин', 'сервер работает'],
   ];
   $('statGrid').replaceChildren(...items.map(([value, label]) => el('div', { className: 'stat' }, el('b', { textContent: value }), el('span', { textContent: label }))));
@@ -642,6 +657,15 @@ $('mailForm').addEventListener('submit', async (event) => {
 });
 
 // ---------- Покупки ----------
+async function loadGemPayments() {
+  const list = await api('/gem-payments');
+  const rows = list.map((p) => el('tr', {},
+    el('td', { textContent: fmtDate(p.PaidAt) }), el('td', { textContent: p.AccountTag }),
+    el('td', { textContent: '+' + p.Gems }), el('td', { textContent: p.Stars }),
+    el('td', { textContent: p.TelegramUserId })));
+  if (!rows.length) rows.push(el('tr', {}, el('td', { colSpan: 5, className: 'muted', textContent: 'Покупок пока нет' })));
+  $('gemRows').replaceChildren(...rows);
+}
 async function loadPayments() {
   const list = await api('/payments');
   const rows = list.map((p) => el('tr', {},

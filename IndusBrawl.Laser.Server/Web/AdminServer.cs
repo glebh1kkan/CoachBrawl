@@ -1,4 +1,4 @@
-// Web/AdminServer.cs
+﻿// Web/AdminServer.cs
 // Админ-панель CoachBrawl. Слушает только 127.0.0.1, наружу публикуется через nginx (HTTPS).
 using System;
 using System.Collections.Concurrent;
@@ -156,6 +156,7 @@ namespace IndusBrawl.Laser.Server.Web
                         ("GET", "/mail") => MailLog(),
                         ("POST", "/mail") => MailSend(body),
                         ("GET", "/payments") => Payments(),
+                        ("GET", "/gem-payments") => GemPayments(),
                         ("POST", "/maintenance") => Maintenance(body),
                         _ => throw new ApiError(404, "Не найдено")
                     };
@@ -374,6 +375,7 @@ namespace IndusBrawl.Laser.Server.Web
             }
 
             var payments = ReadPayments();
+            var gemPayments = ReadGemPayments();
             return new
             {
                 online = Sessions.Count,
@@ -383,6 +385,9 @@ namespace IndusBrawl.Laser.Server.Web
                 serverTime = DateTime.Now,
                 vipPurchases = payments.Count,
                 vipStars = payments.Sum(p => (int?)p["Stars"] ?? 0),
+                gemPurchases = gemPayments.Count,
+                gemStars = gemPayments.Sum(p => (int?)p["Stars"] ?? 0),
+                gemsSold = gemPayments.Sum(p => (int?)p["Gems"] ?? 0),
                 offers = CustomOffers.GetAll().Count
             };
         }
@@ -407,6 +412,24 @@ namespace IndusBrawl.Laser.Server.Web
         private object Payments()
         {
             var payments = ReadPayments();
+            payments.Reverse();
+            return payments.Take(200);
+        }
+
+        private static List<JObject> ReadGemPayments()
+        {
+            try
+            {
+                if (File.Exists("gem_payments.json"))
+                    return JsonConvert.DeserializeObject<List<JObject>>(File.ReadAllText("gem_payments.json")) ?? new List<JObject>();
+            }
+            catch { }
+            return new List<JObject>();
+        }
+
+        private object GemPayments()
+        {
+            var payments = ReadGemPayments();
             payments.Reverse();
             return payments.Take(200);
         }
