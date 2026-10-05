@@ -7,6 +7,7 @@ using IndusBrawl.Laser.Logic.Data.Helper;
 using IndusBrawl.Laser.Logic.Helper;
 using IndusBrawl.Laser.Logic.Home;
 using IndusBrawl.Laser.Logic.Home.Items;
+using IndusBrawl.Laser.Logic.Home.Structures;
 using IndusBrawl.Laser.Logic.Listener;
 using IndusBrawl.Laser.Logic.Message;
 using IndusBrawl.Laser.Logic.Message.Home;
@@ -218,6 +219,7 @@ namespace IndusBrawl.Laser.Logic.Ranked
 
             if (plist_thestealdev.All(p => p.pie_thestealdev) && !asdjfhsdjfhasdkf)
             {
+                Console.WriteLine($"[RankedMatch] {DateTime.UtcNow:HH:mm:ss} sending final prep, match={r_i_thestealdev}");
                 Send(new RankedMatchFinalPreparationStartedMessage());
                 asdjfhsdjfhasdkf = true;
                 ssaihfshdofasodf = GetTicks();
@@ -238,6 +240,7 @@ namespace IndusBrawl.Laser.Logic.Ranked
 
             if (asdjfhsdjfhasdkf && ssaihfshdofasodf + (20 * 10) < GetTicks())
             {
+                Console.WriteLine($"[RankedMatch] {DateTime.UtcNow:HH:mm:ss} final prep done, calling StartBattle, match={r_i_thestealdev}");
                 StartBattle();
             }
 
@@ -868,16 +871,20 @@ namespace IndusBrawl.Laser.Logic.Ranked
                 {
                     if (Avatar != null)
                     {
-                        var heroMethod = Avatar.GetType().GetMethod("GetHero");
-                        if (heroMethod != null)
+                        var heroObj = Avatar.GetHero(ca_thestealdev);
+                        if (heroObj != null)
                         {
-                            var hero = heroMethod.Invoke(Avatar, new object[] { ca_thestealdev });
-                            if (hero != null)
-                            {
-                                var powerLevelProp = hero.GetType().GetProperty("PowerLevel");
-                                if (powerLevelProp != null)
-                                    _heroLVL = (int)powerLevelProp.GetValue(hero);
-                            }
+                            _heroLVL = heroObj.PowerLevel;
+                            if (heroObj.SelectedStarPowerId > 0)
+                                _starpowerId = GlobalId.CreateGlobalId(23, heroObj.SelectedStarPowerId);
+                            if (heroObj.SelectedGadgetId > 0)
+                                _gadgetId = GlobalId.CreateGlobalId(23, heroObj.SelectedGadgetId);
+                            if (heroObj.SelectedOverChargeId > 0)
+                                _hyperCharge = GlobalId.CreateGlobalId(23, heroObj.SelectedOverChargeId);
+                            if (heroObj.SelectedGearId1 > 0)
+                                _gear1GlobalId = GlobalId.CreateGlobalId(62, heroObj.SelectedGearId1);
+                            if (heroObj.SelectedGearId2 > 0)
+                                _gear2GlobalId = GlobalId.CreateGlobalId(62, heroObj.SelectedGearId2);
                         }
                     }
                 }
