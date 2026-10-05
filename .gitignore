@@ -27,3 +27,4 @@ admin_audit.log
 *.deb
 .DS_Store
 *.bak*
+*.apk

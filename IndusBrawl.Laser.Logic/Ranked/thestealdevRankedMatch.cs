@@ -232,8 +232,8 @@ namespace IndusBrawl.Laser.Logic.Ranked
 
             if (ily && currtur_thestealdev != null && thesteeeeel + (20 * 16) < GetTicks())
             {
-                Send(new RankedMatchTerminatedMessage { Name = currtur_thestealdev.dd_thestealdev.Name, Reason = 2 });
-                d_thestealdev = true;
+                // тест: автопик вместо смерти матча — берём первого открытого бойца
+                AutoPickCurrentPlayer();
             }
 
             if (asdjfhsdjfhasdkf && ssaihfshdofasodf + (20 * 10) < GetTicks())
@@ -256,6 +256,29 @@ namespace IndusBrawl.Laser.Logic.Ranked
             Console.WriteLine($"[RankedMatch] Starting battle round {rdns_thestealdev + 1} for match {r_i_thestealdev}");
             LogicServerListener.Instance.StartMatchBattle(plist_thestealdev, null, loc_stealdev, (int)r_i_thestealdev, rdns_thestealdev);
             d_thestealdev = true;
+        }
+
+        // тест: игрок не пикнул за 16 сек — пикаем за него первого открытого бойца
+        private void AutoPickCurrentPlayer()
+        {
+            var player = currtur_thestealdev;
+            if (player == null) return;
+
+            int hero = 16000000; // шелли по умолчанию
+            try
+            {
+                var owned = player.Avatar?.Heroes;
+                if (owned != null && owned.Count > 0)
+                    hero = owned[0].CharacterId;
+            }
+            catch { }
+
+            player.ca_thestealdev = hero;
+            player.ps_thestlealdeveEVEVE = 0;
+            player.pie_thestealdev = true;
+            Console.WriteLine($"[RankedMatch] autopick: player={player.i_thestealdev} hero={hero}");
+            SendHeroPicked(player);
+            NextTurn();
         }
 
         private void EndBanPhaseAndStartPicks()
