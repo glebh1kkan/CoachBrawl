@@ -395,7 +395,7 @@ public static class Program
             case 22156: Log("HERO PICKED echo"); break;
             case 22158: Log("FINAL PREP"); break;
             case 20559:
-                if (Mode == "battle1" && UdpSessionId < 0)
+                if ((Mode == "battle1" || Mode == "team1") && UdpSessionId < 0)
                 {
                     Log("START LOADING, подключаюсь по UDP и стою афк до конца боя");
                     UdpJoin();
@@ -407,7 +407,7 @@ public static class Program
                 }
                 break;
             case 23456: // BattleEndMessage
-                if (Mode == "battle1")
+                if (Mode == "battle1" || Mode == "team1")
                 {
                     Log("BATTLE END получен, ТЕСТ БОЯ ПРОЙДЕН");
                     Environment.Exit(0);
