@@ -206,9 +206,9 @@
 
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                ;
+                Console.WriteLine($"[Teams] StartGame error: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
