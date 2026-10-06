@@ -511,25 +511,27 @@ public static class Program
         catch (Exception ex) { Log("movetest fail: " + ex.Message); }
     }
 
-    static void UdpSendInput()
+    static int MoveTX = 6000, MoveTY = 9750;
+
+    static void UdpSendInput(int type = 2, int x = 6000, int y = 9750)
     {
-        var bits = new IndusBrawl.Laser.Titan.DataStream.BitStream(64);
+        var bits = new IndusBrawl.Laser.Titan.DataStream.BitStream(128);
         bits.WritePositiveInt(UdpTick++, 14);
         bits.WritePositiveInt(0, 10);
         bits.WritePositiveInt(0, 13);
         bits.WritePositiveInt(0, 10);
         bits.WritePositiveInt(0, 10);
         bits.WritePositiveInt(0, 10);
-        bits.WritePositiveInt(1, 5); // count=1: иду
+        bits.WritePositiveInt(1, 5); // count=1
         bits.WritePositiveInt(0, 15); // Index
-        bits.WritePositiveInt(0, 5); // Type 0 = движение
-        bits.WriteInt(MoveX, 15);
-        bits.WriteInt(MoveY, 15);
+        bits.WritePositiveInt(type, 5); // Type: 2 = движение
+        bits.WriteInt(x, 15);
+        bits.WriteInt(y, 15);
         bits.WriteBoolean(false);
         bits.WriteBoolean(false); // AutoAttack
         bits.WriteBoolean(false);
         byte[] raw = bits.GetByteArray();
-        byte[] body = new byte[16]; // 72 + ~50 бит
+        byte[] body = new byte[17]; // 72 + 15+5+15+15+3 = 125 бит
         Buffer.BlockCopy(raw, 0, body, 0, Math.Min(body.Length, raw.Length));
         var bs = new ByteStream(48);
         bs.WriteLong(UdpSessionId);
