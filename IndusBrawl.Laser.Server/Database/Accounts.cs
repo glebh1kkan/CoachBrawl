@@ -93,6 +93,12 @@
                 Hero hero = new Hero(16000000); // Предполагаем что конструктор принимает ID героя
                 account.Avatar.Heroes = new List<Hero> { hero };
 
+                // стартовые кубки: клиент открывает магазин и кнопки сразу, без первой игры
+                hero.Trophies = 50;
+                hero.HighestTrophies = 50;
+                account.Avatar.Trophies = 50;
+                account.Avatar.HighestTrophies = 50;
+
                 account.Avatar.Gold = 100;
                 // Убираем присвоение Trophies и HighTrophies если они read-only
 
@@ -121,7 +127,7 @@
                 connection.Open();
                 using var cmd = new MySqlCommand("INSERT INTO accounts (`Id`, `Trophies`, `Data`) VALUES (@id, @trophies, @data)", connection);
                 cmd.Parameters.AddWithValue("@id", account.AccountId);
-                cmd.Parameters.AddWithValue("@trophies", 0); // Начальное значение трофеев
+                cmd.Parameters.AddWithValue("@trophies", 50); // стартовые кубки
                 cmd.Parameters.AddWithValue("@data", json);
                 cmd.ExecuteNonQuery();
 

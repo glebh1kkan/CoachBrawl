@@ -447,18 +447,30 @@ public static class Program
         SendRaw(14355, Fin(s), 1);
     }
 
+    static HttpClient AdminHttp;
+    static string AdminGet(string path)
+    {
+        if (AdminHttp == null)
+        {
+            var handler = new HttpClientHandler { CookieContainer = new CookieContainer() };
+            AdminHttp = new HttpClient(handler);
+            string loginJson = "{\"login\":\"admin\",\"password\":\"" + AdminPass + "\"}";
+            var lr = AdminHttp.PostAsync("http://127.0.0.1:8086/api/login",
+                new StringContent(loginJson, System.Text.Encoding.UTF8, "application/json")).Result;
+            Log("admin login: " + ((int)lr.StatusCode));
+        }
+        return AdminHttp.GetStringAsync("http://127.0.0.1:8086" + path).Result;
+    }
+
+    static int MoveX = 300, MoveY = 0;
+    static string MyTag = "";
+
     static void UdpJoin()
     {
         try
         {
-            string tag = LogicLongCodeGenerator.ToCode(MyAccountId);
-            var handler = new HttpClientHandler { CookieContainer = new CookieContainer() };
-            using var h2 = new HttpClient(handler);
-            string loginJson = "{\"login\":\"admin\",\"password\":\"" + AdminPass + "\"}";
-            var lr = h2.PostAsync("http://127.0.0.1:8086/api/login",
-                new StringContent(loginJson, System.Text.Encoding.UTF8, "application/json")).Result;
-            Log("admin login: " + ((int)lr.StatusCode) + " " + lr.Content.ReadAsStringAsync().Result);
-            string js = h2.GetStringAsync("http://127.0.0.1:8086/api/test/session?tag=" + Uri.EscapeDataString(tag)).Result;
+            MyTag = LogicLongCodeGenerator.ToCode(MyAccountId);
+            string js = AdminGet("/api/test/session?tag=" + Uri.EscapeDataString(MyTag));
             Log("session info: " + js);
             string marker = "\"udpSessionId\":";
             long sid = long.Parse(js.Split(marker)[1].Split('}')[0].Trim().TrimEnd(','));
@@ -477,25 +489,49 @@ public static class Program
                 }
                 catch { }
             }).Start();
-            Log("udp join session=" + sid + ", стою афк...");
+            Log("udp join session=" + sid + ", иду +X, проверяю позицию...");
+            new Thread(MoveTest).Start();
         }
         catch (Exception ex) { Log("udp join fail: " + ex.Message); }
     }
 
+    static void MoveTest()
+    {
+        try
+        {
+            Thread.Sleep(3000);
+            string a = AdminGet("/api/test/battle?tag=" + Uri.EscapeDataString(MyTag));
+            Log("pos t0: " + a);
+            Thread.Sleep(8000);
+            string b = AdminGet("/api/test/battle?tag=" + Uri.EscapeDataString(MyTag));
+            Log("pos t1: " + b);
+            if (a != b) Log("ДВИЖЕНИЕ ЕСТЬ: позиция изменилась");
+            else Log("ДВИЖЕНИЯ НЕТ: позиция та же");
+        }
+        catch (Exception ex) { Log("movetest fail: " + ex.Message); }
+    }
+
     static void UdpSendInput()
     {
-        var bits = new IndusBrawl.Laser.Titan.DataStream.BitStream(16);
+        var bits = new IndusBrawl.Laser.Titan.DataStream.BitStream(64);
         bits.WritePositiveInt(UdpTick++, 14);
         bits.WritePositiveInt(0, 10);
         bits.WritePositiveInt(0, 13);
         bits.WritePositiveInt(0, 10);
         bits.WritePositiveInt(0, 10);
         bits.WritePositiveInt(0, 10);
-        bits.WritePositiveInt(0, 5); // count=0, стою
+        bits.WritePositiveInt(1, 5); // count=1: иду
+        bits.WritePositiveInt(0, 15); // Index
+        bits.WritePositiveInt(0, 5); // Type 0 = движение
+        bits.WriteInt(MoveX, 15);
+        bits.WriteInt(MoveY, 15);
+        bits.WriteBoolean(false);
+        bits.WriteBoolean(false); // AutoAttack
+        bits.WriteBoolean(false);
         byte[] raw = bits.GetByteArray();
-        byte[] body = new byte[9]; // 72 бита заголовка пустого инпута
-        Buffer.BlockCopy(raw, 0, body, 0, Math.Min(9, raw.Length));
-        var bs = new ByteStream(32);
+        byte[] body = new byte[16]; // 72 + ~50 бит
+        Buffer.BlockCopy(raw, 0, body, 0, Math.Min(body.Length, raw.Length));
+        var bs = new ByteStream(48);
         bs.WriteLong(UdpSessionId);
         bs.WriteShort((short)0);
         bs.WriteVInt(10555);

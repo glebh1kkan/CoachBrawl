@@ -168,6 +168,7 @@ namespace IndusBrawl.Laser.Server.Web
                         ("POST", "/content/test-tags") => ContentTestTags(body),
                         ("POST", "/content/refresh") => ContentRefresh(),
                         ("GET", "/test/session") => TestSession(query["tag"].ToString()),
+                        ("GET", "/test/battle") => TestBattle(query["tag"].ToString()),
                         ("GET", "/teams") => TeamList(),
                         ("POST", "/team/add") => TeamAdd(body),
                         ("POST", "/maintenance") => Maintenance(body),
@@ -613,6 +614,14 @@ namespace IndusBrawl.Laser.Server.Web
             var session = Sessions.GetSession(id);
             if (session?.Connection == null) throw new ApiError(404, "Нет активной сессии");
             return new { tag, accountId = id, udpSessionId = session.Connection.UdpSessionId };
+        }
+
+        private object TestBattle(string tag)
+        {
+            Account account = LoadAccount(tag, out long id);
+            var found = IndusBrawl.Laser.Server.Logic.Game.Battles.FindPlayer(id);
+            if (found == null) throw new ApiError(404, "Игрок не в бою");
+            return found;
         }
 
         // ---------- Команды ----------
