@@ -2156,7 +2156,7 @@ public void TickEffects()
                 {
                     MoveAngle = LogicMath.GetAngle(m_closestEnemyPosition.X - Position.X, m_closestEnemyPosition.Y - Position.Y);
                     MoveAngle += GetBattle().GetRandomInt(2) == 1 ? 45 : -45;
-                    GetPlayer().Accessory.TriggerAccessory(this, 0, 0);
+                    try { GetPlayer()?.Accessory?.TriggerAccessory(this, 0, 0); } catch { }
                 }
                 else if (projectile != null && distance < projectile.ProjectileData.Radius + CharacterData.CollisionRadius && distance < 3000)
                 {
