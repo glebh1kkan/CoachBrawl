@@ -512,18 +512,19 @@ public static class Program
     }
 
     static int MoveTX = 6000, MoveTY = 9750;
+    static int UdpIndex = 0;
 
     static void UdpSendInput(int type = 2, int x = 6000, int y = 9750)
     {
         var bits = new IndusBrawl.Laser.Titan.DataStream.BitStream(128);
         bits.WritePositiveInt(UdpTick++, 14);
         bits.WritePositiveInt(0, 10);
-        bits.WritePositiveInt(0, 13);
+        bits.WritePositiveInt(UdpIndex++, 13);
         bits.WritePositiveInt(0, 10);
         bits.WritePositiveInt(0, 10);
         bits.WritePositiveInt(0, 10);
         bits.WritePositiveInt(1, 5); // count=1
-        bits.WritePositiveInt(0, 15); // Index
+        bits.WritePositiveInt(UdpIndex, 15); // Index растёт
         bits.WritePositiveInt(type, 5); // Type: 2 = движение
         bits.WriteInt(x, 15);
         bits.WriteInt(y, 15);
