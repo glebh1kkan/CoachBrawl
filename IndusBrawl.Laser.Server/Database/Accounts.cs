@@ -94,9 +94,9 @@
                 account.Avatar.Heroes = new List<Hero> { hero };
 
                 // стартовые кубки: клиент открывает магазин и кнопки сразу, без первой игры
+                // (Avatar.Trophies считается сам как сумма по героям)
                 hero.Trophies = 50;
                 hero.HighestTrophies = 50;
-                account.Avatar.Trophies = 50;
                 account.Avatar.HighestTrophies = 50;
 
                 account.Avatar.Gold = 100;
